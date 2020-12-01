@@ -36,6 +36,7 @@ class KoopmanLQR(nn.Module):
                     use a linear subspace projection if kept None
         u_affine:   should be a linear transform for an augmented observation phi(x, u) = phi(x) + nn.Linear(u)
         """
+        super().__init__()
         self._k = k
         self._x_dim = x_dim
         self._u_dim = u_dim
@@ -68,7 +69,7 @@ class KoopmanLQR(nn.Module):
         # time-invariant A, B, Q, R (with leading batch dimensions) but goals can be a batch of trajectories (batch_size, T+1, k)
         #       min \Sigma^{T} (x_t - goal[t])^T Q (x_t - goal[t]) + u_t^T R u_t
         # s.t.  x_{t+1} = A x_t + B u_t
-        # return feedback gain and feedforward terms such that u = K x + k
+        # return feedback gain and feedforward terms such that u = -K x + k
 
         # goals include the terminal reference
         T = goals.shape[1]-1
@@ -109,4 +110,5 @@ class KoopmanLQR(nn.Module):
             v = utils.batch_mv(A_BK.transpose(-2, -1), v) + utils.batch_mv(Q, goals[:, i, :])   
 
         # we might need to cat or stack to return them as tensors but for mpc maybe only the first time step is useful...
+        # note K is for negative feedback, namely u = -Kx+k
         return K, k
