@@ -3,7 +3,7 @@ Solving LQR for Koopman embedded dynamical systems. Keep everything differentiab
 """
 
 import torch
-from torch import nn
+from torch import nn, optim
 
 import utils
 
@@ -46,7 +46,7 @@ class KoopmanLQR(nn.Module):
         # Koopman observable function: putting state and control together as an augmented autonomous state
         # and assume control is not subject a dynamical process h(x_t+1, 0) = K h(x_t, u_t)
         # only state part is nonlinearly embedded: h(x_t, u_t) = phi(x_t) + Cu_t
-        # put together: g(x_t+1) = A phi(x_t) + Bu_t, this makes a linear system w.r.t. g(.)
+        # put together: h(x_t+1, 0) = A phi(x_t) + Bu_t --> phi(x_t+1) = A phi(x_t) + B u_t, this makes a linear system w.r.t. g(.)
         if phi is None:
             self._phi = nn.Linear(x_dim, k)
         elif phi == 'FCNN':
@@ -112,3 +112,48 @@ class KoopmanLQR(nn.Module):
         # we might need to cat or stack to return them as tensors but for mpc maybe only the first time step is useful...
         # note K is for negative feedback, namely u = -Kx+k
         return K, k
+
+    def fit_koopman(self, X, U, train_phi=True, n_itrs=100, lr=1e-4, verbose=False):
+        '''
+        fit koopman paramters, phi, A and B
+        X, U:   trajectories of states and actions (batch_size, T, dim), self-supervision by ignoring the last action
+        n_itrs: number of optimization iterations
+        '''
+
+        u_curr = U[:, :X.shape[1]-1, :]
+
+        #choose to train NN feature or not. In the case of False, the embedding is basically a random projection
+        if train_phi:
+            params = list(self._phi.parameters()) + list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
+        else:
+            #this can actually solved by pinverse...
+            params = list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
+        
+        opt = optim.Adam(params, lr=lr, weight_decay=0)
+        loss = nn.MSELoss()
+        
+        for i in range(n_itrs):
+            g_next = self._phi(X[:, 1:, :])
+            g_curr = self._phi(X[:, :-1, :])
+            
+            g_pred = self._phi_affine(g_curr)+self._u_affine(u_curr)
+            #eval loss over all of them
+
+            output = loss(g_pred, g_next)
+
+            #apply gradient
+            opt.zero_grad()
+            output.backward()
+            opt.step()
+
+            if verbose:
+                print('Iteration {0}: MSE loss - {1}'.format(i, output.item()))
+        return
+    
+    def predict_koopman(self, G, U):
+        '''
+        predict dynamics with current koopman parameters
+        note both input and return are embeddings of the predicted state, we can recover that by using invertible net, e.g. normalizing-flow models
+        but that would require a same dimensionality
+        '''
+        return self._phi_affine(G)+self._u_affine(U)
