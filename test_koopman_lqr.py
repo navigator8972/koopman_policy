@@ -88,7 +88,13 @@ def test_koopman_fit():
     
     ctrl = klqr.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
 
-    ctrl.fit_koopman(torch.from_numpy(trajs).float(), torch.from_numpy(u).float(), train_phi=False, n_itrs=500, lr=1e-2, verbose=True)
+    ctrl.fit_koopman(torch.from_numpy(trajs).float(), torch.from_numpy(u).float(), 
+        train_phi=True, 
+        train_phi_inv=True,
+        train_metric=True,
+        n_itrs=500, 
+        lr=5e-4, 
+        verbose=True)
 
     #for test
     x_0 = np.ones((1, 2)) * 0.5
