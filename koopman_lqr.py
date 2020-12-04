@@ -74,7 +74,7 @@ class KoopmanLQR(nn.Module):
             self._phi_inv = None # this, user must specify their own inverse network
         
         #prepare linear system params
-        self._phi_affine = nn.Linear(k, k, bias=False)
+        self._phi_affine = torch.Tensor(())
 
         if u_affine is None:
             self._u_affine = nn.Linear(u_dim, k, bias=False)
@@ -102,7 +102,7 @@ class KoopmanLQR(nn.Module):
         v = utils.batch_mv(Q, goals[:, -1, :])
         for i in reversed(range(T)):
             # (B^T V B + R)^{-1}
-            V_uu_inv = torch.pinverse(
+            V_uu_inv = torch.inverse(
                 torch.matmul(
                 torch.matmul(B_trans, V),
                 B
@@ -131,11 +131,11 @@ class KoopmanLQR(nn.Module):
         # note K is for negative feedback, namely u = -Kx+k
         return K, k
 
-    def fit_koopman(self, X, U,
-            train_AB=False,         #whether use optimization to train A and B; if not use pinv directly solving the least square problem
+    def fit_koopman(self, X, U,         
             train_phi=True,         #whether train encoder or not
             train_phi_inv=True,     #include reconstruction aux loss
             train_metric=True,      #include auxiliary term to preserve distance
+            ls_factor=None,         #if not None but a float, use pinv directly solving the least square problem, with the value as the regularization factor of matrix inversion
             n_itrs=100,             #number of optimization iterations
             lr=1e-4,                #learning rate
             verbose=False):         #verbose info
@@ -198,6 +198,32 @@ class KoopmanLQR(nn.Module):
                 if verbose:
                     print('Iteration {0}: Pred loss - {1}; Recons loss - {2}; Metric loss - {3}'.format(i, pred_loss, recons_loss, metric_loss))
         return
+    
+    def _solve_least_square(self, G, U, I_factor=10):
+        '''
+        using pinv to solve least square to identify A and B, do we need to retain batch dimension? Shouldn't we account all data?
+        G, U: (B, T, dim)
+        G_t+1 = G_t A^T +  u B^T = [G_t u] [A^T; B^T]
+        '''
+        B, T, dim = G.Size()
+        g_next_flatten = G[:, 1:, :].reshape(torch.Size([1, B*(T-1), dim]))
+        g_curr_flatten = G[:, :-1, :].reshape(torch.Size([1, B*(T-1), dim]))
+        u_flatten = U[:, :T-1, :].reshape(torch.Size([1, B*(T-1), U.shape[2]]))
+        #(1, B*T, k+u_dim)
+        GU_cat = torch.cat([g_curr_flatten, u_flatten], dim=2)
+        #get the persudo inverse
+
+        AB_cat = torch.bmm(utils.batch_pinv(GU_cat, I_factor), g_next_flatten)
+
+        #note since g and u are represented by the last dim, row vectors, remember to transform them back
+        A_transpose = AB_cat[:, :G.shape[2], :]
+        B_transpose = AB_cat[:, G.shape[2]:, :]        
+
+        fit_err = g_next_flatten - torch.bmm(GU_cat, AB_cat)
+        fit_err = torch.sqrt((fit_err ** 2).mean())
+
+        #assign that to affines
+        return A_transpose, B_transpose, fit_err
     
     def _loss_metric(self, X, G, scaling_factor = 1):
         #constructing auxiliary cost to preserve distance in original and embedded space
