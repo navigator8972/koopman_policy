@@ -74,12 +74,20 @@ class KoopmanLQR(nn.Module):
             self._phi_inv = None # this, user must specify their own inverse network
         
         #prepare linear system params
-        self._phi_affine = torch.Tensor(())
+        #self._phi_affine = nn.Linear(k, k, bias=False)
+        self._phi_affine = torch.randn((k, k))
+
 
         if u_affine is None:
-            self._u_affine = nn.Linear(u_dim, k, bias=False)
+            #self._u_affine = nn.Linear(u_dim, k, bias=False)
+            self._u_affine = torch.randn((k, u_dim))
         else:
             self._u_affine = u_affine
+        
+        # use_gpu = torch.cuda.is_available()
+        # if use_gpu:
+        #     self._phi_affine.cuda()
+        #     self._u_affine.cuda()
         return
     
     def _solve_lqr(self, A, B, Q, R, goals):
@@ -149,11 +157,13 @@ class KoopmanLQR(nn.Module):
 
         #choose to train NN feature or not. In the case of False, the embedding is basically a random projection
         if train_phi:
-            params = list(self._phi.parameters()) + list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
-        else:
+            # params = list(self._phi.parameters()) + list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
+            params = list(self._phi.parameters())
+        if ls_factor is None:
             #this can actually solved by pinverse...
-            params = list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
-        
+            # params += list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
+            params += [nn.Parameter(self._phi_affine), nn.Parameter(self._u_affine)]
+
         if train_phi_inv:
             assert self._phi_inv is not None
             params += list(self._phi_inv.parameters())
@@ -170,9 +180,8 @@ class KoopmanLQR(nn.Module):
                 g_next = g[:, 1:, :]
                 g_curr = g[:, :-1, :]
                 
-                g_pred = self._phi_affine(g_curr)+self._u_affine(u_curr)
+                g_pred = torch.matmul(g_curr, self._phi_affine.transpose(0, 1))+torch.matmul(u_curr, self._u_affine.transpose(0, 1))
                 
-
                 #eval loss over all of them
                 tol_loss = loss(g_pred, g_next)
                 pred_loss = tol_loss.item()
@@ -249,4 +258,4 @@ class KoopmanLQR(nn.Module):
         note both input and return are embeddings of the predicted state, we can recover that by using invertible net, e.g. normalizing-flow models
         but that would require a same dimensionality
         '''
-        return self._phi_affine(G)+self._u_affine(U)
+        return torch.matmul(G, self._phi_affine.transpose(0, 1))+torch.matmul(U, self._u_affine.transpose(0, 1))
