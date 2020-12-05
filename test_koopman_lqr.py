@@ -92,6 +92,7 @@ def test_koopman_fit():
         train_phi=True, 
         train_phi_inv=True,
         train_metric=True,
+        ls_factor=1.,
         n_itrs=500, 
         lr=5e-4, 
         verbose=True)
@@ -101,14 +102,13 @@ def test_koopman_fit():
     #sinoidal input, this is different from the doc
     u = np.array([np.sin(2*np.pi*0.3*np.linspace(0, 1, n_steps))]).T[np.newaxis, :, :]
     test_traj = [x_0]
-    pred_traj = [ctrl._phi(torch.from_numpy(x_0).float()).detach().numpy()]
+    pred_traj = [ctrl._phi(torch.from_numpy(x_0).float().unsqueeze(0)).detach().numpy()]    #unsqueeze for the batch dimension
     for t in range(n_steps-1):
         x_new = vanderpol2d(test_traj[-1], u[:, t, :])
         
         x_pred = ctrl.predict_koopman(torch.from_numpy(pred_traj[-1]).float(), torch.from_numpy(u[:, t, :]).float())
         # try one step pred?
         # x_pred = ctrl.predict_koopman(torch.from_numpy(test_traj[-1]).float(), torch.from_numpy(u[:, t, :]).float())
-
         test_traj.append(x_new)
         pred_traj.append(x_pred.detach().numpy())
     
@@ -116,13 +116,14 @@ def test_koopman_fit():
     #note we cannot directly compare to the test traj in the unlifted space...
     test_traj = ctrl._phi(torch.from_numpy(test_traj).float()).detach().numpy()
     pred_traj = np.swapaxes(np.array(pred_traj), 0, 1)
+    # print(pred_traj.shape)
 
     fig = plt.figure(figsize=(8, 8))
     ax = fig.add_subplot(111)
     ax.plot(np.arange(test_traj.shape[1]), test_traj[0, :, 0] , 'b.')
     ax.plot(np.arange(test_traj.shape[1]), test_traj[0, :, 1] , 'g.')
-    ax.plot(np.arange(pred_traj.shape[1]), pred_traj[0, :, 0], 'b-')
-    ax.plot(np.arange(pred_traj.shape[1]), pred_traj[0, :, 1], 'g-')
+    ax.plot(np.arange(pred_traj.shape[1]), pred_traj[0, :, 0, 0], 'b-')
+    ax.plot(np.arange(pred_traj.shape[1]), pred_traj[0, :, 0, 1], 'g-')
     plt.show()
     return
 

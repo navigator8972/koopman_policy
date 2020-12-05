@@ -177,14 +177,21 @@ class KoopmanLQR(nn.Module):
             # or lets stick to an entire optimization loop since we want to learn encoder/decoder anyhow
             for i in range(n_itrs):
                 g = self._phi(X)
-                g_next = g[:, 1:, :]
-                g_curr = g[:, :-1, :]
+                if ls_factor is None:
+                    g_next = g[:, 1:, :]
+                    g_curr = g[:, :-1, :]
+                    
+                    g_pred = torch.matmul(g_curr, self._phi_affine.transpose(0, 1))+torch.matmul(u_curr, self._u_affine.transpose(0, 1))
                 
-                g_pred = torch.matmul(g_curr, self._phi_affine.transpose(0, 1))+torch.matmul(u_curr, self._u_affine.transpose(0, 1))
-                
-                #eval loss over all of them
-                tol_loss = loss(g_pred, g_next)
-                pred_loss = tol_loss.item()
+                    #eval loss over all of them
+                    tol_loss = loss(g_pred, g_next)
+                    pred_loss = tol_loss.item()
+                else:
+                    #solve least square problem to get A and B
+                    A_trans, B_trans, pred_loss = self._solve_least_square(g, u_curr, ls_factor)
+                    tol_loss = pred_loss
+                    self._phi_affine = A_trans.transpose(0, 1)
+                    self._u_affine = B_trans.transpose(0, 1)    
 
                 if train_phi_inv:
                     recons_loss = loss(self._phi_inv(self._phi(X)), X)
@@ -214,7 +221,7 @@ class KoopmanLQR(nn.Module):
         G, U: (B, T, dim)
         G_t+1 = G_t A^T +  u B^T = [G_t u] [A^T; B^T]
         '''
-        B, T, dim = G.Size()
+        B, T, dim = G.size()
         g_next_flatten = G[:, 1:, :].reshape(torch.Size([1, B*(T-1), dim]))
         g_curr_flatten = G[:, :-1, :].reshape(torch.Size([1, B*(T-1), dim]))
         u_flatten = U[:, :T-1, :].reshape(torch.Size([1, B*(T-1), U.shape[2]]))

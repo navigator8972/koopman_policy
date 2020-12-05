@@ -35,7 +35,8 @@ def batch_pinv(x, I_factor):
 
     x_t = torch.transpose(x, 1, 2)
 
-    use_gpu = torch.cuda.is_available()
+    # use_gpu = torch.cuda.is_available()
+    use_gpu = False #test for now...
     I = torch.eye(D)[None, :, :].repeat(B, 1, 1)
     if use_gpu:
         I = I.cuda()
