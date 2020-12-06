@@ -87,8 +87,8 @@ def test_koopman_fit():
     trajs = np.swapaxes(np.array(trajs), 0, 1)
     
     ctrl = klqr.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
-
-    ctrl.fit_koopman(torch.from_numpy(trajs).float(), torch.from_numpy(u).float(), 
+    ctrl.cuda()
+    ctrl.fit_koopman(torch.from_numpy(trajs).float().cuda(), torch.from_numpy(u).float().cuda(), 
         train_phi=True, 
         train_phi_inv=True,
         train_metric=True,
@@ -96,6 +96,7 @@ def test_koopman_fit():
         n_itrs=500, 
         lr=5e-4, 
         verbose=True)
+    ctrl.cpu()
 
     #for test
     x_0 = np.ones((1, 2)) * 0.5

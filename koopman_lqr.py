@@ -75,14 +75,14 @@ class KoopmanLQR(nn.Module):
         
         #prepare linear system params
         #self._phi_affine = nn.Linear(k, k, bias=False)
-        self._phi_affine = torch.randn((k, k))
+        self._phi_affine = nn.Parameter(torch.randn((k, k)))
 
 
         if u_affine is None:
             #self._u_affine = nn.Linear(u_dim, k, bias=False)
-            self._u_affine = torch.randn((k, u_dim))
+            self._u_affine = nn.Parameter(torch.randn((k, u_dim)))
         else:
-            self._u_affine = u_affine
+            self._u_affine = nn.Parameter(u_affine)
         
         # use_gpu = torch.cuda.is_available()
         # if use_gpu:
@@ -90,6 +90,7 @@ class KoopmanLQR(nn.Module):
         #     self._u_affine.cuda()
         return
     
+   
     def _solve_lqr(self, A, B, Q, R, goals):
         # a differentiable process of solving LQR, 
         # time-invariant A, B, Q, R (with leading batch dimensions) but goals can be a batch of trajectories (batch_size, T+1, k)
@@ -162,7 +163,7 @@ class KoopmanLQR(nn.Module):
         if ls_factor is None:
             #this can actually solved by pinverse...
             # params += list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
-            params += [nn.Parameter(self._phi_affine), nn.Parameter(self._u_affine)]
+            params += [self._phi_affine, self._u_affine]
 
         if train_phi_inv:
             assert self._phi_inv is not None
@@ -188,11 +189,11 @@ class KoopmanLQR(nn.Module):
                     pred_loss = tol_loss.item()
                 else:
                     #solve least square problem to get A and B
-                    A_trans, B_trans, pred_loss = self._solve_least_square(g, u_curr, ls_factor)
+                    A, B, pred_loss = self._solve_least_square(g, u_curr, ls_factor)
                     tol_loss = pred_loss
-                    self._phi_affine = A_trans.transpose(0, 1)
-                    self._u_affine = B_trans.transpose(0, 1)    
-
+                    self._phi_affine = nn.Parameter(A)
+                    self._u_affine = nn.Parameter(B)
+                    
                 if train_phi_inv:
                     recons_loss = loss(self._phi_inv(self._phi(X)), X)
                     tol_loss = tol_loss + recons_loss
@@ -229,7 +230,7 @@ class KoopmanLQR(nn.Module):
         GU_cat = torch.cat([g_curr_flatten, u_flatten], dim=2)
         #get the persudo inverse
 
-        AB_cat = torch.bmm(utils.batch_pinv(GU_cat, I_factor), g_next_flatten)
+        AB_cat = torch.bmm(utils.batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), g_next_flatten)
 
         #note since g and u are represented by the last dim, row vectors, remember to transform them back
         A_transpose = AB_cat[:, :G.shape[2], :]
@@ -239,7 +240,7 @@ class KoopmanLQR(nn.Module):
         fit_err = torch.sqrt((fit_err ** 2).mean())
 
         #assign that to affines
-        return A_transpose, B_transpose, fit_err
+        return A_transpose.transpose(0,1), B_transpose.transpose(0,1), fit_err
     
     def _loss_metric(self, X, G, scaling_factor = 1):
         #constructing auxiliary cost to preserve distance in original and embedded space

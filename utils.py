@@ -16,7 +16,7 @@ def batch_mv(bmat, bvec):
 
 #from compositional koopman work
 #curiously the default I_factor is 10, meaning we cannot really pursue an accurate least square fit because backpropagate of inv is unstable?
-def batch_pinv(x, I_factor):
+def batch_pinv(x, I_factor, use_gpu=False):
 
     """
     :param x: B x N x D (N > D)
@@ -36,7 +36,7 @@ def batch_pinv(x, I_factor):
     x_t = torch.transpose(x, 1, 2)
 
     # use_gpu = torch.cuda.is_available()
-    use_gpu = False #test for now...
+    # use_gpu = False #test for now...
     I = torch.eye(D)[None, :, :].repeat(B, 1, 1)
     if use_gpu:
         I = I.cuda()
