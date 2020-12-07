@@ -53,7 +53,7 @@ class KoopmanLQR(nn.Module):
         self._k = k
         self._x_dim = x_dim
         self._u_dim = u_dim
-        self._x_goal = x_goal
+        self._x_goal = nn.Parameter(x_goal)
         self._T = T
 
         # Koopman observable function: putting state and control together as an augmented autonomous state
@@ -267,3 +267,16 @@ class KoopmanLQR(nn.Module):
         but that would require a same dimensionality
         '''
         return torch.matmul(G, self._phi_affine.transpose(0, 1))+torch.matmul(U, self._u_affine.transpose(0, 1))
+    
+    def forward(self, x0):
+        '''
+        perform mpc with current parameters given the initial x0
+        '''
+        Q = torch.diag(self._q_diag_log.exp()).unsqueeze(0)
+        R = torch.diag(self._r_diag_log.exp()).unsqueeze(0)
+        #this might have efficiency issue since the goal needs to be populated every call?
+        goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+        K, k = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
+        #apply the first control as mpc
+        u = -utils.batch_mv(K[:, 0, :, :], self._phi(x0)) + k[:, 0, :] 
+        return u
