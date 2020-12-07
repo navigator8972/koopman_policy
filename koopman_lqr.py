@@ -84,10 +84,10 @@ class KoopmanLQR(nn.Module):
         else:
             self._u_affine = nn.Parameter(u_affine)
         
-        # use_gpu = torch.cuda.is_available()
-        # if use_gpu:
-        #     self._phi_affine.cuda()
-        #     self._u_affine.cuda()
+        #parameters of quadratic functions
+        self._q_diag_log = nn.Parameter(torch.zeros(k))  #to use: Q = diag(_q_diag_log.exp())
+        #gain of control penalty, in theory need to be parameterized...
+        self._r_diag_log = nn.Parameter(torch.zeros(u_dim))
         return
     
    
