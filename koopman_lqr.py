@@ -278,5 +278,6 @@ class KoopmanLQR(nn.Module):
         goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
         K, k = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
         #apply the first control as mpc
-        u = -utils.batch_mv(K[:, 0, :, :], self._phi(x0)) + k[:, 0, :] 
+        # print(K[0].shape, k[0].shape)
+        u = -utils.batch_mv(K[0], self._phi(x0)) + k[0] 
         return u

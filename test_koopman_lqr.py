@@ -128,7 +128,68 @@ def test_koopman_fit():
     plt.show()
     return
 
+import torch.nn as nn
+
+def test_mpc():
+    goal = torch.from_numpy(np.zeros(4)).float()
+    ctrl = klqr.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=goal, T=15, phi=nn.Identity(), u_affine=None)
+    
+
+    dt = 0.01
+    #circular path
+    ang = np.arange(0, 1, dt) * 2*np.pi
+    T = len(ang)
+    ref = np.array([np.cos(ang), np.sin(ang)]).T + np.array([0.0, 1.0])
+    ref = np.concatenate((ref, dt*np.array([-np.sin(ang), np.cos(ang)]).T), 1)
+
+    #plot ref
+    # fig = plt.figure(figsize=(8, 8))
+    # ax = fig.add_subplot(111)
+    # ax.plot(ref[:, 0], ref[:, 1], '*')
+
+    #a 2D point mass
+    m = 0.01
+    A = np.array([[1, 0, dt, 0],
+                  [0, 1, 0, dt],
+                  [0, 0, 1, 0],
+                  [0, 0, 0, 1]  ])
+    B = np.array([  [0, 0],
+                    [0, 0],
+                    [1, 0],
+                    [0, 1]  ]) * dt/m
+    Q = np.eye(4)
+    #less forcusing on tracking velocity
+    Q[2,2] = 0.001
+    Q[3,3] = 0.001
+
+    R = np.eye(2)*0.01
+
+    ctrl._phi_affine = nn.Parameter(torch.from_numpy(A).float())
+    ctrl._u_affine = nn.Parameter(torch.from_numpy(B).float())
+    ctrl._q_diag_log = nn.Parameter(torch.from_numpy(np.diag(Q)).float().log())
+    ctrl._r_diag_log = nn.Parameter(torch.from_numpy(np.diag(R)).float().log())
+    
+
+    #for test
+    x_0 = np.concatenate((np.ones(2) * 0.5, np.zeros(2)))
+    #sinoidal input, this is different from the doc
+    test_traj = [x_0]
+    for t in range(T-1):
+        ctrl._x_goal = nn.Parameter(torch.from_numpy(ref[t]).float())
+        u = ctrl(torch.from_numpy(test_traj[-1]).float().unsqueeze(0)).detach().numpy()[0]
+        x_new = A.dot(test_traj[-1]) + B.dot(u) + np.concatenate((np.zeros(2), np.random.randn(2)*0.5))
+        test_traj.append(x_new)
+    
+    test_traj = np.array(test_traj)
+    fig = plt.figure(figsize=(8, 8))
+    ax = fig.add_subplot(111)
+    ax.plot(ref[:, 0], ref[:, 1], '*')
+    ax.plot(test_traj[:, 0], test_traj[:, 1])
+    plt.show()
+
+    return
 
 if __name__ == "__main__":
     # test_solve_lqr()
-    test_koopman_fit()    
+    # test_koopman_fit()
+    test_mpc()    
