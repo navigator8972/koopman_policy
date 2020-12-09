@@ -1,11 +1,11 @@
-import koopman_lqr as klqr
+import koopman_lqr as kpm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
 def test_solve_lqr():
     #these params do not matter
-    ctrl = klqr.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
+    ctrl = kpm.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
 
 
     dt = 0.01
@@ -86,7 +86,7 @@ def test_koopman_fit():
     
     trajs = np.swapaxes(np.array(trajs), 0, 1)
     
-    ctrl = klqr.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
+    ctrl = kpm.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
     ctrl.cuda()
     ctrl.fit_koopman(torch.from_numpy(trajs).float().cuda(), torch.from_numpy(u).float().cuda(), 
         train_phi=True, 
@@ -132,7 +132,7 @@ import torch.nn as nn
 
 def test_mpc():
     goal = torch.from_numpy(np.zeros(4)).float()
-    ctrl = klqr.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=goal, T=15, phi=nn.Identity(), u_affine=None)
+    ctrl = kpm.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=goal, T=15, phi=nn.Identity(), u_affine=None)
     
 
     dt = 0.01
