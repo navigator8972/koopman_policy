@@ -8,6 +8,8 @@ from garage.torch.distributions import TanhNormal
 from garage.torch.policies.stochastic_policy import StochasticPolicy
 from garage.torch.policies.policy import Policy
 
+from garage.torch import global_device
+
 import koopman_lqr as kpm
 
 from dowel import logger, tabular
@@ -79,7 +81,8 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
         broadcast_shape = list(observations.shape[:-1]) + [self._action_dim]
         mean = torch.reshape(mean_flatten, broadcast_shape)
 
-        uncentered_log_std = torch.zeros(*broadcast_shape) + self._init_std
+        uncentered_log_std = torch.zeros(*broadcast_shape).to(
+                    global_device()) + self._init_std
 
         std = uncentered_log_std.exp()
 
