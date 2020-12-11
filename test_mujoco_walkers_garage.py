@@ -3,7 +3,10 @@ import gym
 
 from garage import wrap_experiment
 from garage.envs import GymEnv
+
 from garage.experiment.deterministic import set_seed
+from garage.sampler import RaySampler
+
 from garage.torch.algos import PPO
 from garage.torch.policies import GaussianMLPPolicy
 from garage.torch.value_functions import GaussianMLPValueFunction
@@ -27,25 +30,37 @@ def ppo_half_cheetah(ctxt=None, seed=1):
 
     trainer = Trainer(ctxt)
 
-    policy = GaussianKoopmanLQRPolicy(
-        env_spec=env.spec,
-        k=4,
-        T=5,
-        phi='FCNN',
-        residual=None,
-        # normal_distribution_cls=Normal,
-        init_std=1.0,
-    )
+    policy = GaussianMLPPolicy(env.spec,
+                               hidden_sizes=[64, 64],
+                               hidden_nonlinearity=torch.tanh,
+                               output_nonlinearity=None)
+
+    # policy = GaussianKoopmanLQRPolicy(
+    #     env_spec=env.spec,
+    #     k=4,
+    #     T=5,
+    #     phi='FCNN',
+    #     residual=None,
+    #     # normal_distribution_cls=Normal,
+    #     init_std=1.0,
+    # )
 
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                               hidden_sizes=(32, 32),
                                               hidden_nonlinearity=torch.tanh,
                                               output_nonlinearity=None)
 
+    sampler = RaySampler(agents=policy,
+                        envs=env,
+                        max_episode_length=env.spec.max_episode_length)
+
     algo = PPO(env_spec=env.spec,
                policy=policy,
                value_function=value_function,
+               sampler=sampler,
                discount=0.99,
+               gae_lambda=0.95,
+               lr_clip_range=0.2,
                center_adv=False)
 
     trainer.setup(algo, env)
