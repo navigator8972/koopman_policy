@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import gym
 
 from garage import wrap_experiment
@@ -30,20 +31,31 @@ def ppo_half_cheetah(ctxt=None, seed=1):
 
     trainer = Trainer(ctxt)
 
-    policy = GaussianMLPPolicy(env.spec,
-                               hidden_sizes=[64, 64],
-                               hidden_nonlinearity=torch.tanh,
-                               output_nonlinearity=None)
+    # policy = GaussianMLPPolicy(env.spec,
+    #                            hidden_sizes=[64, 64],
+    #                            hidden_nonlinearity=torch.tanh,
+    #                            output_nonlinearity=None)
 
-    # policy = GaussianKoopmanLQRPolicy(
-    #     env_spec=env.spec,
-    #     k=4,
-    #     T=5,
-    #     phi='FCNN',
-    #     residual=None,
-    #     # normal_distribution_cls=Normal,
-    #     init_std=1.0,
-    # )
+    in_dim = env.spec.observation_space.flat_dim
+    hidden_dim = 32
+    out_dim = env.spec.action_space.flat_dim
+
+    residual = nn.Sequential(
+        nn.Linear(in_dim, hidden_dim),
+        nn.GELU(),
+        nn.Linear(hidden_dim, hidden_dim),
+        nn.GELU(),
+        nn.Linear(hidden_dim, out_dim),
+    )
+    policy = GaussianKoopmanLQRPolicy(
+        env_spec=env.spec,
+        k=4,
+        T=5,
+        phi='FCNN',
+        residual=residual,
+        # normal_distribution_cls=Normal,
+        init_std=1.0,
+    )
 
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                               hidden_sizes=(32, 32),
