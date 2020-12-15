@@ -86,7 +86,7 @@ def test_koopman_fit():
     
     trajs = np.swapaxes(np.array(trajs), 0, 1)
     
-    ctrl = kpm.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
+    ctrl = kpm.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=torch.zeros(4).float(), T=100, phi=None, u_affine=None)
     ctrl.cuda()
     ctrl.fit_koopman(torch.from_numpy(trajs).float().cuda(), torch.from_numpy(u).float().cuda(), 
         train_phi=True, 
@@ -191,5 +191,5 @@ def test_mpc():
 
 if __name__ == "__main__":
     # test_solve_lqr()
-    # test_koopman_fit()
-    test_mpc()    
+    test_koopman_fit()
+    # test_mpc()    

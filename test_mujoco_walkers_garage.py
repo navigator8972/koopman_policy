@@ -16,8 +16,8 @@ from garage.trainer import Trainer
 from koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
 
 @wrap_experiment
-def ppo_half_cheetah(ctxt=None, seed=1):
-    """Train PPO with HalfCheetah-2 environment.
+def ppo_mujoco_walkers(ctxt=None, seed=1):
+    """Train PPO with Mujoco walker environments.
 
     Args:
         ctxt (garage.experiment.ExperimentContext): The experiment
@@ -79,4 +79,4 @@ def ppo_half_cheetah(ctxt=None, seed=1):
     trainer.train(n_epochs=100, batch_size=1500, plot=True)
 
 
-ppo_half_cheetah(seed=1)
+ppo_mujoco_walkers(seed=1)

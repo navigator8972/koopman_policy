@@ -85,9 +85,11 @@ class KoopmanLQR(nn.Module):
             self._u_affine = nn.Parameter(u_affine)
         
         #parameters of quadratic functions
-        self._q_diag_log = nn.Parameter(torch.zeros(k))  #to use: Q = diag(_q_diag_log.exp())
+        # self._q_diag_log = nn.Parameter(torch.zeros(k))  #to use: Q = diag(_q_diag_log.exp())
+        self._q_diag_log = torch.zeros(k)
         #gain of control penalty, in theory need to be parameterized...
-        self._r_diag_log = nn.Parameter(torch.zeros(u_dim))
+        # self._r_diag_log = nn.Parameter(torch.zeros(u_dim))
+        self._r_diag_log = torch.zeros(u_dim)
         return
     
    
@@ -189,7 +191,7 @@ class KoopmanLQR(nn.Module):
                     pred_loss = tol_loss.item()
                 else:
                     #solve least square problem to get A and B
-                    A, B, pred_loss = self._solve_least_square(g, u_curr, ls_factor)
+                    A, B, pred_loss = self._solve_least_square_traj(g, u_curr, ls_factor)
                     tol_loss = pred_loss
                     self._phi_affine = nn.Parameter(A)
                     self._u_affine = nn.Parameter(B)
@@ -216,7 +218,7 @@ class KoopmanLQR(nn.Module):
                     print('Iteration {0}: Pred loss - {1}; Recons loss - {2}; Metric loss - {3}'.format(i, pred_loss, recons_loss, metric_loss))
         return
     
-    def _solve_least_square(self, G, U, I_factor=10):
+    def _solve_least_square_traj(self, G, U, I_factor=10):
         '''
         using pinv to solve least square to identify A and B, do we need to retain batch dimension? Shouldn't we account all data?
         G, U: (B, T, dim)
@@ -226,20 +228,24 @@ class KoopmanLQR(nn.Module):
         g_next_flatten = G[:, 1:, :].reshape(torch.Size([1, B*(T-1), dim]))
         g_curr_flatten = G[:, :-1, :].reshape(torch.Size([1, B*(T-1), dim]))
         u_flatten = U[:, :T-1, :].reshape(torch.Size([1, B*(T-1), U.shape[2]]))
+
+        #assign that to affines
+        return self._solve_least_square(g_curr_flatten, g_next_flatten, u_flatten, I_factor)
+    
+    def _solve_least_square(self, G, G_next, U, I_factor=10):
+        '''
+        G, G_next, U: flattened encodings, encodings of the next step and control - size(1, N, dim)
+        G_next = G A^T + u B^T
+        '''
         #(1, B*T, k+u_dim)
-        GU_cat = torch.cat([g_curr_flatten, u_flatten], dim=2)
-        #get the persudo inverse
+        GU_cat = torch.cat([G, U], dim=2)
+        AB_cat = torch.bmm(utils.batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), G_next)
 
-        AB_cat = torch.bmm(utils.batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), g_next_flatten)
-
-        #note since g and u are represented by the last dim, row vectors, remember to transform them back
         A_transpose = AB_cat[:, :G.shape[2], :]
         B_transpose = AB_cat[:, G.shape[2]:, :]        
 
-        fit_err = g_next_flatten - torch.bmm(GU_cat, AB_cat)
+        fit_err = G_next - torch.bmm(GU_cat, AB_cat)
         fit_err = torch.sqrt((fit_err ** 2).mean())
-
-        #assign that to affines
         return A_transpose.transpose(0,1), B_transpose.transpose(0,1), fit_err
     
     def _loss_metric(self, X, G, scaling_factor = 1):
