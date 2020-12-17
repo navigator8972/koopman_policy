@@ -12,15 +12,32 @@ class FCNN(nn.Module):
     """
     Simple fully connected neural network.
     """
-    def __init__(self, in_dim, out_dim, hidden_dim):
+    def __init__(self, in_dim, out_dim, hidden_dim, hidden_nonlinearity=None, output_nonlinearity=None):
         super().__init__()
-        self.network = nn.Sequential(
-            nn.Linear(in_dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.GELU(),
-            nn.Linear(hidden_dim, out_dim),
-        )
+        if isinstance(hidden_dim, int): 
+            self.network = nn.Sequential(
+                nn.Linear(in_dim, hidden_dim),
+                nn.GELU(),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.GELU(),
+                nn.Linear(hidden_dim, out_dim),
+            )
+        elif isinstance(hidden_dim, list):
+            modules = []
+            modules_dim = [in_dim]+hidden_dim+[out_dim]
+            for idx in range(len(modules_dim)-1):
+                modules.append(nn.Linear(modules_dim[idx], modules_dim[idx+1]))
+                if hidden_nonlinearity is None:
+                    modules.append(nn.GELU())
+                else:
+                    modules.append(hidden_nonlinearity())
+            if output_nonlinearity is not None:
+                modules.append(output_nonlinearity())
+
+            self.network = nn.Sequential(*modules)
+        else:
+            # print(hidden_dim)
+            raise NotImplementedError
 
         # self.init_params()
 
@@ -69,6 +86,9 @@ class KoopmanLQR(nn.Module):
             #use a simple fully connected neural network
             self._phi = FCNN(x_dim, k, 16)
             self._phi_inv = FCNN(k, x_dim, 16)
+        elif isinstance(phi, list):
+            self._phi = FCNN(x_dim, k, hidden_dim=phi)
+            self._phi_inv = FCNN(k, x_dim, hidden_dim=list(reversed(phi)))
         else:
             self._phi = phi
             self._phi_inv = None # this, user must specify their own inverse network
@@ -85,11 +105,11 @@ class KoopmanLQR(nn.Module):
             self._u_affine = nn.Parameter(u_affine)
         
         #parameters of quadratic functions
-        # self._q_diag_log = nn.Parameter(torch.zeros(k))  #to use: Q = diag(_q_diag_log.exp())
-        self._q_diag_log = torch.zeros(k)
+        self._q_diag_log = nn.Parameter(torch.zeros(k))  #to use: Q = diag(_q_diag_log.exp())
+        # self._q_diag_log.requires_grad = False
         #gain of control penalty, in theory need to be parameterized...
-        # self._r_diag_log = nn.Parameter(torch.zeros(u_dim))
-        self._r_diag_log = torch.zeros(u_dim)
+        self._r_diag_log = nn.Parameter(torch.zeros(u_dim))
+        self._r_diag_log.requires_grad = False
         return
     
    

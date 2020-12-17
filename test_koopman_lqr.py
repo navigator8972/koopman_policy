@@ -86,7 +86,9 @@ def test_koopman_fit():
     
     trajs = np.swapaxes(np.array(trajs), 0, 1)
     
-    ctrl = kpm.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=torch.zeros(4).float(), T=100, phi=None, u_affine=None)
+    #it seems a linear embedding sometimes gives a slightly better fit even without the regularization terms.
+    #is there a way we could perform dual optimization to tune the weight of regularization as well?
+    ctrl = kpm.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=torch.zeros(4).float(), T=100, phi=[16, 16], u_affine=None)
     ctrl.cuda()
     ctrl.fit_koopman(torch.from_numpy(trajs).float().cuda(), torch.from_numpy(u).float().cuda(), 
         train_phi=True, 
