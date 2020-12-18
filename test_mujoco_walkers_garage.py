@@ -120,7 +120,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1):
         k=4,
         T=5,
         phi='FCNN',
-        residual=residual,
+        residual=None,
         normal_distribution_cls=TanhNormal,
         init_std=1.0,
     )
