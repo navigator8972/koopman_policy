@@ -97,7 +97,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1):
 
     # policy = TanhGaussianMLPPolicy(
     #     env_spec=env.spec,
-    #     hidden_sizes=[256, 256],
+    #     hidden_sizes=[32, 32],
     #     hidden_nonlinearity=nn.ReLU,
     #     output_nonlinearity=None,
     #     min_std=np.exp(-20.),
@@ -120,7 +120,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1):
         k=4,
         T=5,
         phi='FCNN',
-        residual=None,
+        residual=residual,
         normal_distribution_cls=TanhNormal,
         init_std=1.0,
     )
@@ -161,7 +161,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=1000, batch_size=1000, plot=True)
+    trainer.train(n_epochs=100, batch_size=1000, plot=False)
     return
 
 # ppo_mujoco_walkers(seed=521)
