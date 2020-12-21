@@ -93,7 +93,8 @@ from garage.torch.distributions import TanhNormal
 def sac_mujoco_walkers(ctxt=None, seed=1):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    env = normalize(GymEnv('HalfCheetah-v2'))
+    # env = normalize(GymEnv('HalfCheetah-v2'))
+    env = normalize(GymEnv('Walker2d-v2'))
 
     # policy = TanhGaussianMLPPolicy(
     #     env_spec=env.spec,
