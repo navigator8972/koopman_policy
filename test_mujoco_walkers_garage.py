@@ -90,41 +90,49 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.distributions import TanhNormal
 
 @wrap_experiment(snapshot_mode='none')
-def sac_mujoco_walkers(ctxt=None, seed=1):
+def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
     # env = normalize(GymEnv('HalfCheetah-v2'))
-    env = normalize(GymEnv('Walker2d-v2'))
+    # env = normalize(GymEnv('Walker2d-v2'))
+    env = normalize(GymEnv('Ant-v2'))
 
-    # policy = TanhGaussianMLPPolicy(
-    #     env_spec=env.spec,
-    #     hidden_sizes=[32, 32],
-    #     hidden_nonlinearity=nn.ReLU,
-    #     output_nonlinearity=None,
-    #     min_std=np.exp(-20.),
-    #     max_std=np.exp(2.),
-    # )
+    if policy_type == 'vanilla':
+        policy = TanhGaussianMLPPolicy(
+            env_spec=env.spec,
+            hidden_sizes=[32, 32],
+            hidden_nonlinearity=nn.ReLU,
+            output_nonlinearity=None,
+            min_std=np.exp(-20.),
+            max_std=np.exp(2.),
+        )
+    else:
+        in_dim = env.spec.observation_space.flat_dim
+        hidden_dim = 32
+        out_dim = env.spec.action_space.flat_dim
 
-    in_dim = env.spec.observation_space.flat_dim
-    hidden_dim = 32
-    out_dim = env.spec.action_space.flat_dim
+        if policy_type == 'koopman':
+            residual = None
+        else:
+            residual = nn.Sequential(
+                nn.Linear(in_dim, hidden_dim),
+                nn.GELU(),
+                nn.Linear(hidden_dim, hidden_dim),
+                nn.GELU(),
+                nn.Linear(hidden_dim, out_dim),
+            )            
 
-    residual = nn.Sequential(
-        nn.Linear(in_dim, hidden_dim),
-        nn.GELU(),
-        nn.Linear(hidden_dim, hidden_dim),
-        nn.GELU(),
-        nn.Linear(hidden_dim, out_dim),
-    )
-    policy = GaussianKoopmanLQRPolicy(
-        env_spec=env.spec,
-        k=4,
-        T=5,
-        phi='FCNN',
-        residual=residual,
-        normal_distribution_cls=TanhNormal,
-        init_std=1.0,
-    )
+        
+        policy = GaussianKoopmanLQRPolicy(
+            env_spec=env.spec,
+            k=4,
+            T=8,
+            phi='FCNN',
+            residual=residual,
+            normal_distribution_cls=TanhNormal,
+            init_std=1.0,
+        )
+
     #original hidden size 256
     qf1 = ContinuousMLPQFunction(env_spec=env.spec,
                                  hidden_sizes=[32, 32],
@@ -162,8 +170,10 @@ def sac_mujoco_walkers(ctxt=None, seed=1):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=100, batch_size=1000, plot=False)
+    trainer.train(n_epochs=200, batch_size=1000, plot=False)
     return
 
 # ppo_mujoco_walkers(seed=521)
-sac_mujoco_walkers(seed=521)
+sac_mujoco_walkers(seed=521, policy_type='vanilla')
+sac_mujoco_walkers(seed=521, policy_type='koopman')
+sac_mujoco_walkers(seed=521, policy_type='koopman_residual')
