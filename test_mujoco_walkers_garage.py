@@ -15,7 +15,8 @@ from garage.torch.policies import GaussianMLPPolicy, TanhGaussianMLPPolicy
 from garage.torch.value_functions import GaussianMLPValueFunction
 from garage.trainer import Trainer
 
-from koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
+import koopman_policy
+from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
 
 @wrap_experiment
 def ppo_mujoco_walkers(ctxt=None, seed=1):
@@ -97,6 +98,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     # env = normalize(GymEnv('Walker2d-v2'))
     # env = normalize(GymEnv('Ant-v2'))
     # env = normalize(GymEnv('Swimmer-v2'))
+    env = normalize(GymEnv('Hopper-v2'))
     
     #original hidden size 256
     hidden_size = 256
@@ -131,7 +133,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
             env_spec=env.spec,
             k=4,
             T=5,
-            phi='FCNN',
+            phi=[hidden_dim, hidden_dim],
             residual=residual,
             normal_distribution_cls=TanhNormal,
             init_std=1.0,
@@ -174,7 +176,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=100, batch_size=1000, plot=False)
+    trainer.train(n_epochs=500, batch_size=1000, plot=False)
     return
 
 # ppo_mujoco_walkers(seed=521)

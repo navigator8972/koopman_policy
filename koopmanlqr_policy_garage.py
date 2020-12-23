@@ -10,7 +10,7 @@ from garage.torch.policies.policy import Policy
 
 from garage.torch import global_device
 
-import koopman_lqr as kpm
+import koopman_policy.koopman_lqr as kpm
 
 from dowel import logger, tabular
 

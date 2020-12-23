@@ -1,4 +1,4 @@
-import koopman_lqr as kpm
+import koopman_policy.koopman_lqr as kpm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
