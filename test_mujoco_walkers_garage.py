@@ -101,7 +101,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     env = normalize(GymEnv('Hopper-v2'))
     
     #original hidden size 256
-    hidden_size = 256
+    hidden_size = 64
 
     if policy_type == 'vanilla':
         policy = TanhGaussianMLPPolicy(
@@ -122,9 +122,9 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
         else:
             residual = nn.Sequential(
                 nn.Linear(in_dim, hidden_dim),
-                nn.GELU(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, hidden_dim),
-                nn.GELU(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, out_dim),
             )            
 

@@ -49,9 +49,9 @@ def ppo_block2d(ctxt=None, seed=1, policy_type='koopman'):
         else:
             residual = nn.Sequential(
                 nn.Linear(in_dim, hidden_dim),
-                nn.GELU(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, hidden_dim),
-                nn.GELU(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, out_dim),
             )            
 

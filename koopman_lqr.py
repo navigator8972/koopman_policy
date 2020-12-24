@@ -17,9 +17,9 @@ class FCNN(nn.Module):
         if isinstance(hidden_dim, int): 
             self.network = nn.Sequential(
                 nn.Linear(in_dim, hidden_dim),
-                nn.GELU(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, hidden_dim),
-                nn.GELU(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, out_dim),
             )
         elif isinstance(hidden_dim, list):
@@ -28,7 +28,7 @@ class FCNN(nn.Module):
             for idx in range(len(modules_dim)-1):
                 modules.append(nn.Linear(modules_dim[idx], modules_dim[idx+1]))
                 if hidden_nonlinearity is None:
-                    modules.append(nn.GELU())
+                    modules.append(nn.ReLU())
                 else:
                     modules.append(hidden_nonlinearity())
             if output_nonlinearity is not None:
