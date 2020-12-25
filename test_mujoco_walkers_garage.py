@@ -176,7 +176,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=500, batch_size=1000, plot=False)
+    trainer.train(n_epochs=300, batch_size=1000, plot=False)
     return
 
 # ppo_mujoco_walkers(seed=521)
