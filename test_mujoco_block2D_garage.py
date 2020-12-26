@@ -35,6 +35,7 @@ def ppo_block2d(ctxt=None, seed=1, policy_type='koopman'):
     hidden_size = 32
 
     if policy_type == 'vanilla':
+        print('Using Vanilla NN Policy')
         policy = GaussianMLPPolicy(env.spec,
                                 hidden_sizes=[hidden_size, hidden_size],
                                 hidden_nonlinearity=F.relu,
@@ -45,8 +46,10 @@ def ppo_block2d(ctxt=None, seed=1, policy_type='koopman'):
         out_dim = env.spec.action_space.flat_dim
 
         if policy_type == 'koopman':
+            print('Using Koopman Policy')
             residual = None
         else:
+            print('Using Koopman NN Policy')
             residual = nn.Sequential(
                 nn.Linear(in_dim, hidden_dim),
                 nn.ReLU(),
@@ -93,6 +96,6 @@ def ppo_block2d(ctxt=None, seed=1, policy_type='koopman'):
     trainer.train(n_epochs=100, batch_size=1500, plot=True)
 
 
-# ppo_block2d(seed=521, policy_type='vanilla')
-ppo_block2d(seed=521, policy_type='koopman')
-# ppo_block2d(seed=521, policy_type='koopman_residual')
+ppo_block2d(seed=1, policy_type='vanilla')
+ppo_block2d(seed=1, policy_type='koopman')
+ppo_block2d(seed=1, policy_type='koopman_residual')

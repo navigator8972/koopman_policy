@@ -61,7 +61,7 @@ class Block2DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         # self.viewer.cam.distance = 4.0
 
     def reset_model(self):
-        init_qpos = INIT
+        init_qpos = INIT + (np.random.rand(2) * 0.2 - np.array([0.1, 0.1]))*1
         init_qvel = np.zeros(2)
         self.set_state(init_qpos, init_qvel)
         self.t = 0

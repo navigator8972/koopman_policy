@@ -101,7 +101,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     env = normalize(GymEnv('Hopper-v2'))
     
     #original hidden size 256
-    hidden_size = 64
+    hidden_size = 32
 
     if policy_type == 'vanilla':
         policy = TanhGaussianMLPPolicy(
