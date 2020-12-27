@@ -28,6 +28,7 @@ def ppo_block2d(ctxt=None, seed=1, policy_type='koopman'):
 
     """
     set_seed(seed)
+    # env = GymEnv('InvertedDoublePendulum-v2')
     env = GymEnv('Block2D-v0')
 
     trainer = Trainer(ctxt)
@@ -95,7 +96,9 @@ def ppo_block2d(ctxt=None, seed=1, policy_type='koopman'):
     trainer.setup(algo, env)
     trainer.train(n_epochs=100, batch_size=1500, plot=True)
 
-
-ppo_block2d(seed=1, policy_type='vanilla')
-ppo_block2d(seed=1, policy_type='koopman')
-ppo_block2d(seed=1, policy_type='koopman_residual')
+#[1, 21, 52, 251, 521]
+#[2, 12, 51, 125, 512]
+seed = 512
+ppo_block2d(seed=seed, policy_type='vanilla')
+ppo_block2d(seed=seed, policy_type='koopman')
+ppo_block2d(seed=seed, policy_type='koopman_residual')

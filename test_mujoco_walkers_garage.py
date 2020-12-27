@@ -94,11 +94,11 @@ from garage.torch.distributions import TanhNormal
 def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    # env = normalize(GymEnv('HalfCheetah-v2'))
+    env = normalize(GymEnv('HalfCheetah-v2'))
     # env = normalize(GymEnv('Walker2d-v2'))
     # env = normalize(GymEnv('Ant-v2'))
     # env = normalize(GymEnv('Swimmer-v2'))
-    env = normalize(GymEnv('Hopper-v2'))
+    # env = normalize(GymEnv('Hopper-v2'))
     
     #original hidden size 256
     hidden_size = 32
@@ -179,7 +179,6 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     trainer.train(n_epochs=300, batch_size=1000, plot=False)
     return
 
-# ppo_mujoco_walkers(seed=521)
-sac_mujoco_walkers(seed=521, policy_type='vanilla')
-sac_mujoco_walkers(seed=521, policy_type='koopman')
-sac_mujoco_walkers(seed=521, policy_type='koopman_residual')
+sac_mujoco_walkers(seed=1, policy_type='vanilla')
+sac_mujoco_walkers(seed=1, policy_type='koopman')
+sac_mujoco_walkers(seed=1, policy_type='koopman_residual')
