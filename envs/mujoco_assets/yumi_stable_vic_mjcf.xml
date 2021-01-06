@@ -1,0 +1,245 @@
+<mujoco model="abb_irb14000">
+  <compiler angle="radian" meshdir="./meshes" />
+  <option timestep="0.01" gravity="0 0 0" iterations="20" integrator="RK4" />
+  <!-- <option timestep="0.01" gravity="0 0 -9.8" iterations="20" integrator="RK4" /> -->
+  <!-- Copied from PR2 model in GPS. This was necessary to get natural behaviour -->
+  <default>
+      <!-- <joint armature="0.04" damping="1" limited="true" /> -->
+      <joint armature="0.04" damping="1" limited="true" />
+      <geom friction="0.1 0.005 0.0001" margin="0.002" condim="1" contype="0" conaffinity="1" />
+  </default>
+  <size njmax="500" nconmax="100" />
+    <asset>
+        <mesh name="base_link_v" file="base_link_v.stl" />
+        <mesh name="base_link_c" file="base_link_c.stl" />
+        <mesh name="left_link_1_v" file="left_link_1_v.stl" />
+        <mesh name="left_link_1_c" file="left_link_1_c.stl" />
+        <mesh name="left_link_2_v" file="left_link_2_v.stl" />
+        <mesh name="left_link_2_c" file="left_link_2_c.stl" />
+        <mesh name="left_link_3_v" file="left_link_3_v.stl" />
+        <mesh name="left_link_3_c" file="left_link_3_c.stl" />
+        <mesh name="left_link_4_v" file="left_link_4_v.stl" />
+        <mesh name="left_link_4_c" file="left_link_4_c.stl" />
+        <mesh name="left_link_5_v" file="left_link_5_v.stl" />
+        <mesh name="left_link_5_c" file="left_link_5_c.stl" />
+        <mesh name="left_link_6_v" file="left_link_6_v.stl" />
+        <mesh name="left_link_6_c" file="left_link_6_c.stl" />
+        <mesh name="left_link_7_v" file="left_link_7_v.stl" />
+        <mesh name="left_link_7_c" file="left_link_7_c.stl" />
+        <mesh name="right_link_1_v" file="right_link_1_v.stl" />
+        <mesh name="right_link_1_c" file="right_link_1_c.stl" />
+        <mesh name="right_link_2_v" file="right_link_2_v.stl" />
+        <mesh name="right_link_2_c" file="right_link_2_c.stl" />
+        <mesh name="right_link_3_v" file="right_link_3_v.stl" />
+        <mesh name="right_link_3_c" file="right_link_3_c.stl" />
+        <mesh name="right_link_4_v" file="right_link_4_v.stl" />
+        <mesh name="right_link_4_c" file="right_link_4_c.stl" />
+        <mesh name="right_link_5_v" file="right_link_5_v.stl" />
+        <mesh name="right_link_5_c" file="right_link_5_c.stl" />
+        <mesh name="right_link_6_v" file="right_link_6_v.stl" />
+        <mesh name="right_link_6_c" file="right_link_6_c.stl" />
+        <mesh name="right_link_7_v" file="right_link_7_v.stl" />
+        <mesh name="right_link_7_c" file="right_link_7_c.stl" />
+        <mesh name="smart_gripper_v" file="smart_gripper_v.stl" />
+        <mesh name="smart_gripper_c" file="smart_gripper_c.stl" />
+    </asset>
+    <worldbody>
+      <!-- ======================Adding lighting (why is it inside worldbody?)======================== -->
+  		<light cutoff="100" diffuse="1 1 1" dir="-0 0 -1.3" directional="true" exponent="1" pos="0 0 1.3" specular=".1 .1 .1" castshadow="false"/>
+  		<geom contype="1" conaffinity="0" condim="1" name="floor" pos="0 0 0" rgba="0.8 0.9 0.8 1" size="20 20 .125" type="plane" material="MatPlane"/>
+		<!-- ======================Adding robot model======================== -->
+        <body name="base_link" pos="0 0 0">
+            <inertial pos="-0.172194 -0.000976297 0.164215" quat="0.704188 -0.0569853 -0.0576709 0.705369" mass="64.4428" diaginertia="2.55006 2.13906 1.29867" />
+            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="base_link_v" />
+            <geom type="mesh" rgba="1 1 1 1" mesh="base_link_v" />
+            <body name="left_link_1" pos="0.02767 0.06163 0.39997">
+                <inertial pos="0.0617695 0.0491119 0.0334395" quat="0.586161 0.5945 -0.548003 0.051744" mass="1.68707" diaginertia="0.00596178 0.00577134 0.00264552" />
+                <joint name="left_joint_1" pos="0 0 0" axis="0.813782 0.342033 0.469864" limited="true" range="-2.92343 2.92343" damping="1.06"/>
+                <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="left_link_1_v" />
+                <geom type="mesh" mesh="left_link_1_v" />
+                <body name="left_link_2" pos="0.09359 0.08563 0.0565">
+                    <inertial pos="0.0575266 -0.0189548 0.0551795" quat="0.162142 0.532845 0.336916 0.759127" mass="2.25401" diaginertia="0.0112842 0.0110497 0.00382165" />
+                    <joint name="left_joint_2" pos="0 0 0" axis="0.107006 0.706538 -0.699538" limited="true" range="-2.48709 0.741765" damping="1.09"/>
+                    <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="left_link_2_v" />
+                    <geom type="mesh" rgba="1 1 1 1" mesh="left_link_2_v" />
+                    <body name="left_link_3" pos="0.11922 0.00381 0.06637">
+                        <inertial pos="0.0853618 0.0318821 0.016909" quat="-0.320902 0.735319 -0.166055 0.57337" mass="1.14796" diaginertia="0.00330713 0.00319694 0.00134163" />
+                        <joint name="left_joint_3" pos="0 0 0" axis="0.813771 0.34207 0.469856" limited="true" range="-2.92343 2.92343" damping="0.61"/>
+                        <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="left_link_3_v" />
+                        <geom type="mesh" mesh="left_link_3_v" />
+                        <body name="left_link_4" pos="0.12649 0.0436 0.00883">
+                            <inertial pos="0.0437221 -0.0662985 0.0140473" quat="0.257268 0.862184 0.115159 0.420939" mass="1.83034" diaginertia="0.00817669 0.00792384 0.0026734" />
+                            <joint name="left_joint_4" pos="0 0 0" axis="0.106857 0.706733 -0.699364" limited="true" range="-2.13803 1.37881" damping="0.08" />
+                            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="left_link_4_v" />
+                            <geom type="mesh" rgba="1 1 1 1" mesh="left_link_4_v" />
+                            <body name="left_link_5" pos="0.10366 -0.09418 -0.0248">
+                                <inertial pos="0.0400559 -0.0378699 -0.0616318" quat="0.430142 -0.233314 0.0691526 0.869345" mass="0.683703" diaginertia="0.00168259 0.00161801 0.00050124" />
+                                <joint name="left_joint_5" pos="0 0 0" axis="0.571257 -0.619307 -0.538631" limited="true" range="-5.044 5.044" damping="0.08" />
+                                <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="left_link_5_v" />
+                                <geom type="mesh" mesh="left_link_5_v" />
+                                <body name="left_link_6" pos="0.05912 -0.0626 -0.11428">
+                                    <inertial pos="-0.00162091 -0.024941 0.0472062" quat="0.602883 0.429918 -0.517116 0.429294" mass="0.606118" diaginertia="0.000766064 0.000724189 0.000688628" />
+                                    <joint name="left_joint_6" pos="0 0 0" axis="0.106863 0.706797 -0.699298" limited="true" range="-1.51844 2.3911" damping="0.08" />
+                                    <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="left_link_6_v" />
+                                    <geom type="mesh" rgba="1 1 1 1" mesh="left_link_6_v" />
+                                    <body name="left_link_7" pos="0.01635 -0.01921 0.04313">
+                                        <inertial pos="0.0148469 -0.0155979 -0.0142907" quat="0.470194 0.048331 -0.389545 0.790466" mass="0.0721865" diaginertia="2.40347e-05 2.01222e-05 1.96282e-05" />
+                                        <joint name="left_joint_7" pos="0 0 0" axis="0.57121 -0.619367 -0.538612" limited="true" range="-3.97935 3.97935" damping="0.1" />
+                                        <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="left_link_7_v" />
+                                        <geom type="mesh" mesh="left_link_7_v" />
+                                        <body name="left_tool0" pos="0.02173 -0.02341 -0.02059" quat="0.297586 -0.0673761 0.874618 -0.376758">
+                                            <inertial pos="0.02173 -0.02341 -0.02059" quat="0.297586 -0.0673761 0.874618 -0.376758" mass="0" diaginertia="0 0 0" />
+                                            <body name="left_gripper_base" pos="0 0 0">
+                                                <inertial pos="1.20154e-05 0.00242304 0.0527266" quat="0.706871 0.00701907 -0.0072129 0.707271" mass="0.563549" diaginertia="0.00101254 0.000796983 0.000496939" />
+                                                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="smart_gripper_v" />
+                                                <geom type="mesh" rgba="1 1 1 1" mesh="smart_gripper_v" />
+                                                <!-- <site name="ee_p" pos="0 0 0" size="0.005" /> -->
+                                                <!-- Cylindrical peg -->
+                                                <!-- <body name="left_object_frame" pos="0 0 0.12"> -->
+                                                  <body name="left_object_frame" pos="0 0 0.12">
+                                                    <!-- <site name="leg_bottom" pos="0 0.05 0" size="0.005" />
+                                                    <site name="leg_top" pos="0 -0.15 0" size="0.005" /> -->
+
+                                                    <body name="ball" pos="0 0 0">
+                                                        <geom name="ball_geom" rgba="0.6 0.8 0.6 1" type="cylinder" group="1" fromto="0 0 0 0 0 0.08" size="0.023" density="2000" contype="1" conaffinity="1" />
+                                                    </body>
+                                                </body>
+                                            </body>
+                                        </body>
+                                    </body>
+                                </body>
+                            </body>
+                        </body>
+                    </body>
+                </body>
+            </body>
+<!--            <body name="right_link_1" pos="0.02767 -0.06163 0.39997">-->
+<!--                <inertial pos="0.0579499 -0.0237766 0.0585117" quat="0.888611 0.00706116 0.284115 -0.359999" mass="1.68708" diaginertia="0.00596179 0.00577136 0.00264553" />-->
+<!--                <joint name="right_joint_1" pos="0 0 0" axis="0.813782 -0.342033 0.469864" limited="true" range="-2.92343 2.92343" damping="1.06" />-->
+<!--                <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="right_link_1_v" />-->
+<!--                <geom type="mesh" mesh="right_link_1_v" />-->
+<!--                <body name="right_link_2" pos="0.08697 -0.04182 0.09986">-->
+<!--                    <inertial pos="0.0673887 -0.0458319 -0.00894338" quat="0.789632 0.235697 0.454133 0.338661" mass="2.25414" diaginertia="0.0112853 0.0110502 0.00382215" />-->
+<!--                    <joint name="right_joint_2" pos="0 0 0" axis="-0.107006 0.706538 0.699538" limited="true" range="-2.48709 0.741765" damping="1.09" />-->
+<!--                    <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="right_link_2_v" />-->
+<!--                    <geom type="mesh" rgba="1 1 1 1" mesh="right_link_2_v" />-->
+<!--                    <body name="right_link_3" pos="0.12136 -0.04574 0.02043">-->
+<!--                        <inertial pos="0.0841711 -0.00546401 0.046357" quat="0.221398 0.457214 0.28036 0.814454" mass="1.17909" diaginertia="0.00350236 0.00337992 0.00139159" />-->
+<!--                        <joint name="right_joint_3" pos="0 0 0" axis="0.813782 -0.342123 0.469799" limited="true" range="-2.92343 2.92343" damping="0.61" />-->
+<!--                        <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="right_link_3_v" />-->
+<!--                        <geom type="mesh" mesh="right_link_3_v" />-->
+<!--                        <body name="right_link_4" pos="0.12282 0.00844 0.06476">-->
+<!--                            <inertial pos="0.0548802 -0.00721442 -0.0586922" quat="0.40553 0.120895 0.776964 0.466108" mass="1.83037" diaginertia="0.00817678 0.00792391 0.00267348" />-->
+<!--                            <joint name="right_joint_4" pos="0 0 0" axis="-0.106857 0.706733 0.699364" limited="true" range="-2.13803 1.37881" damping="0.08"/>-->
+<!--                            <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="right_link_4_v" />-->
+<!--                            <geom type="mesh" rgba="1 1 1 1" mesh="right_link_4_v" />-->
+<!--                            <body name="right_link_5" pos="0.11181 0.04026 -0.07815">-->
+<!--                                <inertial pos="0.0356561 0.0670094 -0.0327934" quat="0.70858 0.584035 0.128687 -0.37451" mass="0.68372" diaginertia="0.00168264 0.00161801 0.000501278" />-->
+<!--                                <joint name="right_joint_5" pos="0 0 0" axis="0.571257 0.619307 -0.538631" limited="true" range="-5.044 5.044" damping="0.08" />-->
+<!--                                <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="right_link_5_v" />-->
+<!--                                <geom type="mesh" mesh="right_link_5_v" />-->
+<!--                                <body name="right_link_6" pos="0.04951 0.12621 -0.05134">-->
+<!--                                    <inertial pos="0.00963643 -0.0499608 -0.0270555" quat="0.619994 -0.113325 0.143626 0.762979" mass="0.627544" diaginertia="0.000807004 0.000780265 0.000722194" />-->
+<!--                                    <joint name="right_joint_6" pos="0 0 0" axis="-0.106662 0.706635 0.699493" limited="true" range="-1.51844 2.3911" damping="0.08" />-->
+<!--                                    <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="right_link_6_v" />-->
+<!--                                    <geom type="mesh" rgba="1 1 1 1" mesh="right_link_6_v" />-->
+<!--                                    <body name="right_link_7" pos="0.02596 -0.0444 -0.01981">-->
+<!--                                        <inertial pos="0.0144296 0.0160357 -0.0132869" quat="0.201483 0.412494 -0.819005 0.344216" mass="0.0748575" diaginertia="2.59881e-05 2.12717e-05 2.08339e-05" />-->
+<!--                                        <joint name="right_joint_7" pos="0 0 0" axis="0.571393 0.619384 -0.538399" limited="true" range="-3.97935 3.97935" damping="0.1" />-->
+<!--                                        <geom type="mesh" contype="0" conaffinity="0" group="1" mesh="right_link_7_v" />-->
+<!--                                        <geom type="mesh" mesh="right_link_7_v" />-->
+<!--                                        <body name="right_tool0" pos="0.02173 0.02341 -0.02059" quat="0.297586 0.0673761 0.874618 0.376758">-->
+<!--                                            <inertial pos="0.02173 0.02341 -0.02059" quat="0.297586 0.0673761 0.874618 0.376758" mass="0" diaginertia="0 0 0" />-->
+<!--                                            <body name="right_gripper_base" pos="0 0 0">-->
+<!--                                                <inertial pos="1.20154e-05 0.00242304 0.0527266" quat="0.706871 0.00701907 -0.0072129 0.707271" mass="0.563549" diaginertia="0.00101254 0.000796983 0.000496939" />-->
+<!--                                                <geom type="mesh" contype="0" conaffinity="0" group="1" rgba="1 1 1 1" mesh="smart_gripper_v" />-->
+<!--                                                <geom type="mesh" rgba="1 1 1 1" mesh="smart_gripper_v" />-->
+<!--&lt;!&ndash;&lt;!&ndash;                                                Cylindrical peg&ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;                                                <body name="right_object_frame" pos="0 0 0.12">&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    <site name="leg_bottom" pos="0 0.05 0" size="0.005" />&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    <site name="leg_top" pos="0 -0.15 0" size="0.005" />&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    <body name="ball" pos="0 0 0">&ndash;&gt;-->
+<!--&lt;!&ndash;                                                        <geom name="ball_geom" rgba="0.6 0.8 0.6 1" type="cylinder" group="1" fromto="0 -0.15 0 0 0.05 0" size="0.025" density="2000" contype="2" conaffinity="1" />&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    </body>&ndash;&gt;-->
+<!--&lt;!&ndash;                                                </body>&ndash;&gt;-->
+<!--&lt;!&ndash;&lt;!&ndash;                                                Rect peg&ndash;&gt;&ndash;&gt;-->
+<!--&lt;!&ndash;                                                <body name="right_object_frame" pos="0 -0.05 0.12">&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    <site name="leg_bottom" pos="0 0.1 0" size="0.005" />&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    <site name="leg_top" pos="0 -0.1 0" size="0.005" />&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    <site name="leg_middle" pos="0.025 0.0 0" size="0.005" />&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    <body name="ball" pos="0 0 0">&ndash;&gt;-->
+<!--&lt;!&ndash;                                                        <geom name="ball_geom" rgba="0.6 0.8 0.6 1" type="box" group="1" size="0.025 0.1 0.025" density="2000" contype="2" conaffinity="1" />&ndash;&gt;-->
+<!--&lt;!&ndash;                                                    </body>&ndash;&gt;-->
+<!--&lt;!&ndash;                                                </body>&ndash;&gt;-->
+<!--                                            </body>-->
+<!--                                        </body>-->
+<!--                                    </body>-->
+<!--                                </body>-->
+<!--                            </body>-->
+<!--                        </body>-->
+<!--                    </body>-->
+<!--                </body>-->
+<!--            </body>-->
+        </body>
+
+<!-- ======================The hole setup================================== -->
+<!--        <body name="fl" pos="0.4639 0.0588 0.01">-->
+      <body name="fl" pos="0.46393511 0.105 0.01717972">
+<!--           <body name="fl" pos="0.46393511 0.105 0.02">-->
+<!--          <geom name="w0" rgba="0.3 0.5 0.6 1" type="box" group="1" size="0.025 0.025 0.2" contype="0" conaffinity="0" />-->
+<!--          <geom name="fl" rgba="0.3 0.5 0.6 1" type="box" group="1" size="0.2 0.2 0.01" contype="1" conaffinity="1" />-->
+
+          <body name="w1" pos="0.1125 0. 0.025">
+            <geom name="w1" rgba="0.3 0.5 0.6 1" type="box" group="1" size="0.0875 0.2 0.02" contype="1" conaffinity="1" />
+          </body>
+          <body name="w2" pos="-0.1125 0. 0.025">
+            <geom name="w2" rgba="0.3 0.5 0.6 1" type="box" group="1" size="0.0875 0.2 0.02" contype="1" conaffinity="1" />
+          </body>
+          <body name="w3" pos="0. -0.1125 0.025">
+            <geom name="w3" rgba="0.3 0.5 0.6 1" type="box" group="1" size="0.025 0.0875 0.02" contype="1" conaffinity="1" />
+          </body>
+          <body name="w4" pos="0. 0.1125 0.025">
+            <geom name="w4" rgba="0.3 0.5 0.6 1" type="box" group="1" size="0.025 0.0875 0.02" contype="1" conaffinity="1" />
+          </body>
+      </body>
+
+    </worldbody>
+
+    <!-- ======================Visualizing the world================================== -->
+    <asset>
+        <texture type="skybox" builtin="gradient" rgb1=".4 .5 .6" rgb2="0 0 0"
+            width="100" height="100"/>
+        <texture builtin="flat" height="1278" mark="cross" markrgb="1 1 1" name="texgeom" random="0.01" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" type="cube" width="127"/>
+        <texture builtin="checker" height="100" name="texplane" rgb1="0 0 0" rgb2="0.8 0.8 0.8" type="2d" width="100"/>
+        <material name="MatPlane" reflectance="0.0" shininess="1" specular="1" texrepeat="60 60" texture="texplane" />
+        <material name="geom" texture="texgeom" texuniform="true"/>
+    </asset>
+    <!-- ======================Adding actuactors================================== -->
+    <!-- May have to change ctrlrange, is it in radians?
+    gearratio as per abb convention													-->
+    <actuator>
+<!--			<motor ctrllimited="true" ctrlrange="-30.0 30.0" gear="1" joint="right_joint_1"/>-->
+<!--			<motor ctrllimited="true" ctrlrange="-30.0 30.0" gear="1" joint="right_joint_2"/>-->
+<!--			<motor ctrllimited="true" ctrlrange="-20.0 30.0" gear="1" joint="right_joint_3"/>-->
+<!--			<motor ctrllimited="true" ctrlrange="-10.0 10.0" gear="1" joint="right_joint_4"/>-->
+<!--			<motor ctrllimited="true" ctrlrange="-5.0 5.0" gear="1" joint="right_joint_5"/>-->
+<!--			<motor ctrllimited="true" ctrlrange="-5.0 5.0" gear="1" joint="right_joint_6"/>-->
+<!--			<motor ctrllimited="true" ctrlrange="-5.0 5.0" gear="1" joint="right_joint_7"/>-->
+
+      <motor ctrllimited="true" ctrlrange="-30.0 30.0" gear="1" joint="left_joint_1"/>
+      <motor ctrllimited="true" ctrlrange="-30.0 30.0" gear="1" joint="left_joint_2"/>
+      <motor ctrllimited="true" ctrlrange="-20.0 30.0" gear="1" joint="left_joint_3"/>
+      <motor ctrllimited="true" ctrlrange="-10.0 10.0" gear="1" joint="left_joint_4"/>
+      <motor ctrllimited="true" ctrlrange="-5.0 5.0" gear="1" joint="left_joint_5"/>
+      <motor ctrllimited="true" ctrlrange="-5.0 5.0" gear="1" joint="left_joint_6"/>
+      <motor ctrllimited="true" ctrlrange="-5.0 5.0" gear="1" joint="left_joint_7"/>
+
+<!--      <motor ctrllimited="false" ctrlrange="-100.0 100.0" gear="1" joint="left_joint_1"/>-->
+<!--      <motor ctrllimited="false" ctrlrange="-100.0 100.0" gear="1" joint="left_joint_2"/>-->
+<!--      <motor ctrllimited="false" ctrlrange="-100.0 100.0" gear="1" joint="left_joint_3"/>-->
+<!--      <motor ctrllimited="false" ctrlrange="-100.0 100.0" gear="1" joint="left_joint_4"/>-->
+<!--      <motor ctrllimited="false" ctrlrange="-100.0 100.0" gear="1" joint="left_joint_5"/>-->
+<!--      <motor ctrllimited="false" ctrlrange="-100.0 100.0" gear="1" joint="left_joint_6"/>-->
+<!--      <motor ctrllimited="false" ctrlrange="-100.0 100.0" gear="1" joint="left_joint_7"/>-->
+	</actuator>
+</mujoco>

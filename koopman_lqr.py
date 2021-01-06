@@ -39,7 +39,7 @@ class FCNN(nn.Module):
             # print(hidden_dim)
             raise NotImplementedError
 
-        # self.init_params()
+        self.init_params()
 
 
     def forward(self, x):

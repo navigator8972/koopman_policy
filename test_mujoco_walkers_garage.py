@@ -95,10 +95,8 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
     env = normalize(GymEnv('HalfCheetah-v2'))
-    # env = normalize(GymEnv('Walker2d-v2'))
-    # env = normalize(GymEnv('Ant-v2'))
-    # env = normalize(GymEnv('Swimmer-v2'))
     # env = normalize(GymEnv('Hopper-v2'))
+
     
     #original hidden size 256
     hidden_size = 32
@@ -120,14 +118,14 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
         if policy_type == 'koopman':
             residual = None
         else:
-            residual = nn.Sequential(
-                nn.Linear(in_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, out_dim),
-            )            
-
+            # residual = nn.Sequential(
+            #     nn.Linear(in_dim, hidden_dim),
+            #     nn.ReLU(),
+            #     nn.Linear(hidden_dim, hidden_dim),
+            #     nn.ReLU(),
+            #     nn.Linear(hidden_dim, out_dim),
+            # )            
+            residual = koopman_policy.koopman_lqr.FCNN(in_dim, out_dim, [hidden_dim, hidden_dim], hidden_nonlinearity=nn.ReLU)
         
         policy = GaussianKoopmanLQRPolicy(
             env_spec=env.spec,
@@ -161,7 +159,7 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
               qf2=qf2,
               sampler=sampler,
               gradient_steps_per_itr=1000,
-              max_episode_length_eval=1000,
+              max_episode_length_eval=500,
               replay_buffer=replay_buffer,
               min_buffer_size=1e4,
               target_update_tau=5e-3,
@@ -179,6 +177,9 @@ def sac_mujoco_walkers(ctxt=None, seed=1, policy_type='koopman'):
     trainer.train(n_epochs=300, batch_size=1000, plot=False)
     return
 
-sac_mujoco_walkers(seed=1, policy_type='vanilla')
-sac_mujoco_walkers(seed=1, policy_type='koopman')
-sac_mujoco_walkers(seed=1, policy_type='koopman_residual')
+#[1, 21, 52, 251, 521]
+#[2, 12, 51, 125, 512]
+seed = 521
+sac_mujoco_walkers(seed=seed, policy_type='vanilla')
+sac_mujoco_walkers(seed=seed, policy_type='koopman')
+sac_mujoco_walkers(seed=seed, policy_type='koopman_residual')

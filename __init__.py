@@ -5,3 +5,9 @@ register(
      entry_point='koopman_policy.envs:Block2DEnv',
      max_episode_steps=1000,
 )
+
+register(
+     id='YumiPeg-v0',
+     entry_point='koopman_policy.envs:YumiPegEnv',
+     max_episode_steps=1000,
+)
