@@ -1,9 +1,14 @@
 import numpy as np
+
 import torch
 import torch.nn as nn
 
+from dowel import tabular
+
 from garage.torch.algos import SAC
 from garage import log_performance, obtain_evaluation_episodes, StepType
+
+from garage.torch import np_to_torch, torch_to_np
 
 class KoopmanLQRSAC(SAC):
     def __init__(self,
@@ -32,7 +37,9 @@ class KoopmanLQRSAC(SAC):
             eval_env=None,
             use_deterministic_evaluation=True,
             #additional params for koopman policy
-            use_least_square_fit=True
+            use_least_square_fit=False,
+            #weight to account for koopman fit error, -1 means not to account it
+            koopman_fit_coeff=-1    
             ):
         super().__init__(env_spec,
             policy,
@@ -59,11 +66,13 @@ class KoopmanLQRSAC(SAC):
             use_deterministic_evaluation=use_deterministic_evaluation
             )
         self._use_least_square_fit=use_least_square_fit
+        self._koopman_fit_coeff = koopman_fit_coeff
 
         if use_least_square_fit:
             #the matrices will now be the result of least square procedure
             self.policy._kpm_ctrl._phi_affine.requires_grad = False
             self.policy._kpm_ctrl._u_affine.requires_grad = False
+        
         return
     
     def _evaluate_policy(self, epoch):
@@ -86,36 +95,114 @@ class KoopmanLQRSAC(SAC):
                                       eval_episodes,
                                       discount=self._discount)
         #add to log: latent var correlation, prediction acc and other indicators specialized for koopman_lqr
-        self._log_koopmanlqr_statistics(epoch, eval_episodes, self._discount)
+        self._log_koopmanlqr_statistics(epoch, eval_episodes, prefix='Evaluation')
         return last_return
     
-    def _log_koopmanlqr_statistics(self, itr, batch, discount, prefix='Evaluation'):
-        #TODO
+    def _log_koopmanlqr_statistics(self, itr, batch, prefix='Evaluation'):
+        # print(batch.observations.shape)
+        obs = np_to_torch(batch.observations[:-1, :])
+        next_obs = np_to_torch(batch.observations[1:, :])
+        acts = np_to_torch(batch.actions[:-1, :])
+
+        with torch.no_grad():
+            g = self.policy._kpm_ctrl._phi(obs)
+            g_next = self.policy._kpm_ctrl._phi(next_obs)
+
+            g_pred = torch.matmul(g, self.policy._kpm_ctrl._phi_affine.transpose(0, 1))+torch.matmul(acts, self.policy._kpm_ctrl._u_affine.transpose(0, 1))
+            loss = nn.MSELoss()
+            fit_err = loss(g_pred, g_next)  
+
+            #can only evaluate covariance for this
+            #this might be a bad idea because collected rollouts as normally distributed.
+            # print(self.policy._kpm_ctrl._k, self.env_spec.observation_space.flat_dim)
+            # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
+            #     corrcoef_det = np.linalg.det(np.corrcoef(batch.observations[1:, :], torch_to_np(g_pred)))
+
+        with tabular.prefix(prefix + '/'):
+            tabular.record('Koopman Fit Error', fit_err.item())
+            # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
+            #     tabular.record('Pearson Correlation', corrcoef_det)
+            
         return
 
     def _koopman_fit_objective(self, samples_data):
         obs = samples_data['observation']
-        actions = samples_data['action']
+        acts = samples_data['action']
         # rewards = samples_data['reward'].flatten()
         # terminals = samples_data['terminal'].flatten()
         next_obs = samples_data['next_observation']
+
         g = self.policy._kpm_ctrl._phi(obs)
         g_next = self.policy._kpm_ctrl._phi(next_obs)
 
         if self._use_least_square_fit:
-            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), actions.unsqueeze(0), ls_factor=10)
+            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), acts.unsqueeze(0), ls_factor=10)
             #assign A and B to control parameter for future evaluation
             self.policy._kpm_ctrl._phi_affine = nn.Parameter(A, requires_grad=False)
             self.policy._kpm_ctrl._u_affine = nn.Parameter(B, requires_grad=False)
         else:
-            g_pred = torch.matmul(g, self.policy._kpm_ctrl._phi_affine.transpose(0, 1))+torch.matmul(actions, self._u_affine.transpose(0, 1))
+            g_pred = torch.matmul(g, self.policy._kpm_ctrl._phi_affine.transpose(0, 1))+torch.matmul(acts, self.policy._kpm_ctrl._u_affine.transpose(0, 1))
             loss = nn.MSELoss()
             fit_err = loss(g_pred, g_next)   
-        
+
         return fit_err
     
+    
     def optimize_policy(self, samples_data):
-        super().optimize_policy(samples_data)
-        #TOADD: optimize for fit error as well - merge them with actor objective?
+        """Optimize the policy q_functions, and temperature coefficient.
+        Args:
+            samples_data (dict): Transitions(S,A,R,S') that are sampled from
+                the replay buffer. It should have the keys 'observation',
+                'action', 'reward', 'terminal', and 'next_observations'.
+        Note:
+            samples_data's entries should be torch.Tensor's with the following
+            shapes:
+                observation: :math:`(N, O^*)`
+                action: :math:`(N, A^*)`
+                reward: :math:`(N, 1)`
+                terminal: :math:`(N, 1)`
+                next_observation: :math:`(N, O^*)`
+        Returns:
+            torch.Tensor: loss from actor/policy network after optimization.
+            torch.Tensor: loss from 1st q-function after optimization.
+            torch.Tensor: loss from 2nd q-function after optimization.
+        """
+        obs = samples_data['observation']
+        qf1_loss, qf2_loss = self._critic_objective(samples_data)
 
-        return
+        self._qf1_optimizer.zero_grad()
+        qf1_loss.backward()
+        self._qf1_optimizer.step()
+
+        self._qf2_optimizer.zero_grad()
+        qf2_loss.backward()
+        self._qf2_optimizer.step()
+
+        action_dists = self.policy(obs)[0]
+        new_actions_pre_tanh, new_actions = (
+            action_dists.rsample_with_pre_tanh_value())
+        log_pi_new_actions = action_dists.log_prob(
+            value=new_actions, pre_tanh_value=new_actions_pre_tanh)
+
+        policy_loss = self._actor_objective(samples_data, new_actions,
+                                            log_pi_new_actions)
+        
+        #TOADD: optimize for fit error as well - merge them with actor objective?
+        if self._koopman_fit_coeff > 0:
+            koopman_fit_err = self._koopman_fit_objective(samples_data)
+            policy_loss = policy_loss + self._koopman_fit_coeff * koopman_fit_err
+
+        self._policy_optimizer.zero_grad()
+        policy_loss.backward()
+
+        self._policy_optimizer.step()
+
+        if self._use_automatic_entropy_tuning:
+            alpha_loss = self._temperature_objective(log_pi_new_actions,
+                                                     samples_data)
+            self._alpha_optimizer.zero_grad()
+            alpha_loss.backward()
+            self._alpha_optimizer.step()
+
+
+        return policy_loss, qf1_loss, qf2_loss

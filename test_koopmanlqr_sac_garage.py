@@ -34,6 +34,11 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
     # env = normalize(GymEnv('HalfCheetah-v2'))
     # env = normalize(GymEnv('Hopper-v2'))
     env = normalize(GymEnv('InvertedPendulum-v2'))
+    # env = normalize(GymEnv('Reacher-v2'))
+
+        
+    #original hidden size 256
+    hidden_size = 32
 
     qf1 = ContinuousMLPQFunction(env_spec=env.spec,
                                  hidden_sizes=[hidden_size, hidden_size],
@@ -45,13 +50,6 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 
-    sampler = LocalSampler(agents=policy,
-                           envs=env,
-                           max_episode_length=env.spec.max_episode_length,
-                           worker_class=FragmentWorker)
-    
-    #original hidden size 256
-    hidden_size = 32
 
     if policy_type == 'vanilla':
         policy = TanhGaussianMLPPolicy(
@@ -62,6 +60,11 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
             min_std=np.exp(-20.),
             max_std=np.exp(2.),
         )
+
+        sampler = LocalSampler(agents=policy,
+                        envs=env,
+                        max_episode_length=env.spec.max_episode_length,
+                        worker_class=FragmentWorker)
 
         sac = SAC(env_spec=env.spec,
             policy=policy,
@@ -89,13 +92,18 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
         
         policy = GaussianKoopmanLQRPolicy(
             env_spec=env.spec,
-            k=4,
+            k=4,   #use the same size of koopmanv variable
             T=5,
             phi=[hidden_dim, hidden_dim],
             residual=residual,
             normal_distribution_cls=TanhNormal,
             init_std=1.0,
         )
+
+        sampler = LocalSampler(agents=policy,
+                        envs=env,
+                        max_episode_length=env.spec.max_episode_length,
+                        worker_class=FragmentWorker)
 
         sac = KoopmanLQRSAC(env_spec=env.spec,
             policy=policy,
@@ -112,7 +120,8 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
             reward_scale=1.,
             steps_per_epoch=1,
             #new params
-            use_least_square_fit=False
+            use_least_square_fit=False,
+            koopman_fit_coeff=10
             )
 
     if torch.cuda.is_available():
@@ -121,12 +130,12 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=300, batch_size=1000, plot=False)
+    trainer.train(n_epochs=30, batch_size=1000, plot=False)
     return
 
 #[1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
-seed = 521
-# koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='vanilla')
+seed = 21
+koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='vanilla')
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman')
-# koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman_residual')
+koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman_residual')
