@@ -37,9 +37,12 @@ class KoopmanLQRSAC(SAC):
             eval_env=None,
             use_deterministic_evaluation=True,
             #additional params for koopman policy
-            use_least_square_fit=False,
+            #regularization term for least square if >0. -1 for not using least square to fit koopman
+            least_square_fit_coeff=-1, 
             #weight to account for koopman fit error, -1 means not to account it
-            koopman_fit_coeff=-1    
+            koopman_fit_coeff=-1,
+            #weight to account for reconstruction error from koopman observables, -1 means to ignore the term
+            koopman_recons_coeff=-1     
             ):
         super().__init__(env_spec,
             policy,
@@ -65,10 +68,11 @@ class KoopmanLQRSAC(SAC):
             eval_env=eval_env,
             use_deterministic_evaluation=use_deterministic_evaluation
             )
-        self._use_least_square_fit=use_least_square_fit
+        self._least_square_fit_coeff = least_square_fit_coeff
         self._koopman_fit_coeff = koopman_fit_coeff
+        self._koopman_recons_coeff = koopman_recons_coeff
 
-        if use_least_square_fit:
+        if least_square_fit_coeff > 0:
             #the matrices will now be the result of least square procedure
             self.policy._kpm_ctrl._phi_affine.requires_grad = False
             self.policy._kpm_ctrl._u_affine.requires_grad = False
@@ -135,8 +139,8 @@ class KoopmanLQRSAC(SAC):
         g = self.policy._kpm_ctrl._phi(obs)
         g_next = self.policy._kpm_ctrl._phi(next_obs)
 
-        if self._use_least_square_fit:
-            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), acts.unsqueeze(0), ls_factor=10)
+        if self._least_square_fit_coeff > 0:
+            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), acts.unsqueeze(0), ls_factor=self._least_square_fit_coeff)
             #assign A and B to control parameter for future evaluation
             self.policy._kpm_ctrl._phi_affine = nn.Parameter(A, requires_grad=False)
             self.policy._kpm_ctrl._u_affine = nn.Parameter(B, requires_grad=False)

@@ -120,8 +120,9 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
             reward_scale=1.,
             steps_per_epoch=1,
             #new params
-            use_least_square_fit=False,
-            koopman_fit_coeff=10
+            least_square_fit_coeff=-1,
+            koopman_fit_coeff=10,
+            koopman_recons_coeff=-1
             )
 
     if torch.cuda.is_available():
@@ -135,7 +136,7 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
 
 #[1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
-seed = 21
+seed = 251
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='vanilla')
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman')
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman_residual')
