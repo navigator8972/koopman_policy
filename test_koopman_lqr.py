@@ -96,7 +96,7 @@ def test_koopman_fit():
         train_metric=True,
         ls_factor=1.,
         n_itrs=500, 
-        lr=5e-4, 
+        lr=1e-3, 
         verbose=True)
     ctrl.cpu()
 
@@ -134,9 +134,8 @@ import torch.nn as nn
 
 def test_mpc():
     goal = torch.from_numpy(np.zeros(4)).float()
-    ctrl = kpm.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=goal, T=15, phi=nn.Identity(), u_affine=None)
+    ctrl = kpm.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=goal, T=15, phi=nn.Identity(), u_affine=None, g_goal=None)
     
-
     dt = 0.01
     #circular path
     ang = np.arange(0, 1, dt) * 2*np.pi
@@ -193,5 +192,5 @@ def test_mpc():
 
 if __name__ == "__main__":
     # test_solve_lqr()
-    test_koopman_fit()
-    # test_mpc()    
+    # test_koopman_fit()
+    test_mpc()    

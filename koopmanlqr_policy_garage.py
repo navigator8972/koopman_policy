@@ -30,6 +30,8 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
         to be constructed and returned by a call to forward. By default, is
         `torch.distributions.Normal`.
         init_std (number): initial standard deviation parameter
+        use_state_goal (bool/Tensor): whether to learn a goal in the state space or not. If false the goal will be learned in the embedding space.
+                                      And if a Tensor is given, treat it as a regularization task with a known state goal. 
         name (str): Name of policy.
 
     """
@@ -41,13 +43,26 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
                 residual=None,
                 normal_distribution_cls=Normal,
                 init_std=1.0,
+                use_state_goal=False,
                 name='GaussianKoopmanLQRPolicy'):
         super().__init__(env_spec, name)
         self._obs_dim = env_spec.observation_space.flat_dim
         self._action_dim = env_spec.action_space.flat_dim
-        self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
-                        x_goal=torch.zeros(self._obs_dim), T=T, phi=phi, u_affine=None) #set x_goal separately if we know the goal
-        
+
+        self._use_state_goal = use_state_goal
+        if isinstance(use_state_goal, bool):
+            if use_state_goal:
+                self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
+                                x_goal=torch.zeros(self._obs_dim), T=T, phi=phi, u_affine=None, g_goal=None) #set x_goal separately if we know the goal
+            else:
+                self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
+                                x_goal=None, T=T, phi=phi, u_affine=None, g_goal=torch.zeros(k)) #set x_goal separately if we know the goal
+        else:
+            #regularization for a known goal
+            self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
+                                x_goal=use_state_goal, T=T, phi=phi, u_affine=None, g_goal=None) #set x_goal separately if we know the goal
+            self._kpm_ctrl._x_goal.requires_grad = False
+
         self._residual = residual
         self._normal_distribution_cls=normal_distribution_cls
         #this is probably slightly different from GaussianMLP that has only one param for variance

@@ -55,7 +55,7 @@ class FCNN(nn.Module):
         self.apply(param_init)
 
 class KoopmanLQR(nn.Module):
-    def __init__(self, k, x_dim, u_dim, x_goal, T, phi=None, u_affine=None):
+    def __init__(self, k, x_dim, u_dim, x_goal, T, phi=None, u_affine=None, g_goal=None):
         """
         k:          rank of approximated koopman operator
         x_dim:      dimension of system state
@@ -65,12 +65,23 @@ class KoopmanLQR(nn.Module):
         phi:        observation func for state. nn.Module. should be a module handling input dim x_dim and output k dim vectors
                     use a linear subspace projection if kept None
         u_affine:   should be a linear transform for an augmented observation phi(x, u) = phi(x) + nn.Linear(u)
+        g_goal:     None by default. If not, override the x_goal so it is not necessarily corresponding to a concrete goal state
+                    might be useful for non regularization tasks.  
         """
         super().__init__()
         self._k = k
         self._x_dim = x_dim
         self._u_dim = u_dim
-        self._x_goal = nn.Parameter(x_goal)
+        if g_goal is None:
+            if isinstance(x_goal, nn.Module):
+                raise NotImplementedError
+            else:
+                self._x_goal = nn.Parameter(x_goal)
+            self._g_goal = g_goal
+        else:
+            self._x_goal = None
+            self._g_goal = nn.Parameter(g_goal)
+
         self._T = T
 
         # Koopman observable function: putting state and control together as an augmented autonomous state
@@ -300,8 +311,14 @@ class KoopmanLQR(nn.Module):
         '''
         Q = torch.diag(self._q_diag_log.exp()).unsqueeze(0)
         R = torch.diag(self._r_diag_log.exp()).unsqueeze(0)
-        #this might have efficiency issue since the goal needs to be populated every call?
-        goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+        if self._x_goal is not None:
+            #this might have efficiency issue since the goal needs to be populated every call?
+            goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+        else:
+            #use g_goal instead
+            assert(self._g_goal is not None)
+            goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+            
         K, k = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
         #apply the first control as mpc
         # print(K[0].shape, k[0].shape)

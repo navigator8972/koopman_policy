@@ -98,6 +98,7 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
             residual=residual,
             normal_distribution_cls=TanhNormal,
             init_std=1.0,
+            use_state_goal=False,   #non regularization task, should be flexible?
         )
 
         sampler = LocalSampler(agents=policy,

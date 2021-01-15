@@ -67,6 +67,7 @@ def ppo_peginhole(ctxt=None, seed=1, policy_type='koopman'):
             phi='FCNN',
             residual=residual,
             init_std=1.0,
+            use_state_goal=True
         )
 
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
