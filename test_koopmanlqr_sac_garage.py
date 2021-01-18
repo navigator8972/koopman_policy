@@ -31,9 +31,9 @@ from garage.torch.distributions import TanhNormal
 def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    # env = normalize(GymEnv('HalfCheetah-v2'))
+    env = normalize(GymEnv('HalfCheetah-v2'))
     # env = normalize(GymEnv('Hopper-v2'))
-    env = normalize(GymEnv('InvertedPendulum-v2'))
+    # env = normalize(GymEnv('InvertedPendulum-v2'))
     # env = normalize(GymEnv('Reacher-v2'))
 
         
@@ -121,7 +121,7 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
             reward_scale=1.,
             steps_per_epoch=1,
             #new params
-            least_square_fit_coeff=-1,
+            least_square_fit_coeff=10,
             koopman_fit_coeff=10,
             koopman_recons_coeff=-1
             )
@@ -132,12 +132,12 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=30, batch_size=1000, plot=False)
+    trainer.train(n_epochs=300, batch_size=1000, plot=False)
     return
 
 #[1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
-seed = 251
-koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='vanilla')
+seed = 521
+# koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='vanilla')
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman')
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman_residual')

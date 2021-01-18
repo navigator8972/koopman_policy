@@ -76,8 +76,8 @@ def test_koopman_fit():
     n_trajs = 20
     n_steps = 1000
 
-    u = np.random.rand(n_trajs, n_steps, 1) * 2 - 1
-    x_0 = np.random.rand(n_trajs, 2) * 2 - 1
+    u = np.random.rand(n_trajs, n_steps, 1) * 2 -1 
+    x_0 = np.random.rand(n_trajs, 2) * 1 - 0.5
 
     trajs = [x_0]
     for t in range(n_steps-1):
@@ -94,9 +94,9 @@ def test_koopman_fit():
         train_phi=True, 
         train_phi_inv=True,
         train_metric=True,
-        ls_factor=1.,
+        ls_factor=10,
         n_itrs=500, 
-        lr=1e-3, 
+        lr=1e-4, 
         verbose=True)
     ctrl.cpu()
 
@@ -192,5 +192,5 @@ def test_mpc():
 
 if __name__ == "__main__":
     # test_solve_lqr()
-    # test_koopman_fit()
-    test_mpc()    
+    test_koopman_fit()
+    # test_mpc()    

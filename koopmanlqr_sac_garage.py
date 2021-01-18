@@ -140,7 +140,7 @@ class KoopmanLQRSAC(SAC):
         g_next = self.policy._kpm_ctrl._phi(next_obs)
 
         if self._least_square_fit_coeff > 0:
-            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), acts.unsqueeze(0), ls_factor=self._least_square_fit_coeff)
+            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), acts.unsqueeze(0), I_factor=self._least_square_fit_coeff)
             #assign A and B to control parameter for future evaluation
             self.policy._kpm_ctrl._phi_affine = nn.Parameter(A, requires_grad=False)
             self.policy._kpm_ctrl._u_affine = nn.Parameter(B, requires_grad=False)

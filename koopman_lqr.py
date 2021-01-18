@@ -267,6 +267,8 @@ class KoopmanLQR(nn.Module):
         '''
         G, G_next, U: flattened encodings, encodings of the next step and control - size(1, N, dim)
         G_next = G A^T + u B^T
+
+        return mat (dim*dim), remove batch dimension by squeeze(0)
         '''
         #(1, B*T, k+u_dim)
         GU_cat = torch.cat([G, U], dim=2)
@@ -274,10 +276,11 @@ class KoopmanLQR(nn.Module):
 
         A_transpose = AB_cat[:, :G.shape[2], :]
         B_transpose = AB_cat[:, G.shape[2]:, :]        
-
+        # print(A_transpose, B_transpose)
+        # print(A_transpose.squeeze(0), B_transpose.squeeze(0))
         fit_err = G_next - torch.bmm(GU_cat, AB_cat)
         fit_err = torch.sqrt((fit_err ** 2).mean())
-        return A_transpose.transpose(0,1), B_transpose.transpose(0,1), fit_err
+        return A_transpose.squeeze(0).transpose(0,1), B_transpose.squeeze(0).transpose(0,1), fit_err
     
     def _loss_metric(self, X, G, scaling_factor = 1):
         #constructing auxiliary cost to preserve distance in original and embedded space
