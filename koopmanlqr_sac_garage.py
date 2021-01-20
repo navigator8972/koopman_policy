@@ -41,6 +41,7 @@ class KoopmanLQRSAC(SAC):
             least_square_fit_coeff=-1, 
             #weight to account for koopman fit error, -1 means not to account it
             koopman_fit_coeff=-1,
+            koopman_fit_coeff_errbound=-1,  #optimize koopman fit coefficient as lagrangian multipler as well to enforce the constraint of fit_err <= errbound
             #weight to account for reconstruction error from koopman observables, -1 means to ignore the term
             koopman_recons_coeff=-1     
             ):
@@ -70,6 +71,7 @@ class KoopmanLQRSAC(SAC):
             )
         self._least_square_fit_coeff = least_square_fit_coeff
         self._koopman_fit_coeff = koopman_fit_coeff
+        self._koopman_fit_coeff_errbound = koopman_fit_coeff_errbound
         self._koopman_recons_coeff = koopman_recons_coeff
 
         if least_square_fit_coeff > 0:
@@ -126,6 +128,7 @@ class KoopmanLQRSAC(SAC):
             tabular.record('Koopman Fit Error', fit_err.item())
             # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
             #     tabular.record('Pearson Correlation', corrcoef_det)
+            tabular.record('Koopman Fit Coeff', self._koopman_fit_coeff)
             
         return
 
@@ -191,13 +194,13 @@ class KoopmanLQRSAC(SAC):
         policy_loss = self._actor_objective(samples_data, new_actions,
                                             log_pi_new_actions)
         
-        #TOADD: optimize for fit error as well - merge them with actor objective?
         if self._koopman_fit_coeff > 0:
             koopman_fit_err = self._koopman_fit_objective(samples_data)
-            policy_loss = policy_loss + self._koopman_fit_coeff * koopman_fit_err
+            tol_loss = policy_loss + self._koopman_fit_coeff * koopman_fit_err
 
+            
         self._policy_optimizer.zero_grad()
-        policy_loss.backward()
+        tol_loss.backward()
 
         self._policy_optimizer.step()
 
@@ -207,6 +210,9 @@ class KoopmanLQRSAC(SAC):
             self._alpha_optimizer.zero_grad()
             alpha_loss.backward()
             self._alpha_optimizer.step()
-
+        
+        if self._koopman_fit_coeff_errbound > 0:
+            self._koopman_fit_coeff = max(0, 
+                    self._koopman_fit_coeff - self._policy_lr*(self._koopman_fit_coeff_errbound - koopman_fit_err.item()))
 
         return policy_loss, qf1_loss, qf2_loss

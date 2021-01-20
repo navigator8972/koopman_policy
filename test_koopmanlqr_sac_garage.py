@@ -31,11 +31,11 @@ from garage.torch.distributions import TanhNormal
 def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    env = normalize(GymEnv('HalfCheetah-v2'))
+    # env = normalize(GymEnv('HalfCheetah-v2'))
     # env = normalize(GymEnv('Hopper-v2'))
     # env = normalize(GymEnv('InvertedPendulum-v2'))
     # env = normalize(GymEnv('Reacher-v2'))
-
+    env = GymEnv('Block2D-v0')
         
     #original hidden size 256
     hidden_size = 32
@@ -121,8 +121,9 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
             reward_scale=1.,
             steps_per_epoch=1,
             #new params
-            least_square_fit_coeff=10,
+            least_square_fit_coeff=-1,
             koopman_fit_coeff=10,
+            koopman_fit_coeff_errbound=-1,
             koopman_recons_coeff=-1
             )
 
@@ -137,7 +138,7 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
 
 #[1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
-seed = 521
+seed = 1
 # koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='vanilla')
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman')
 koopmanlqr_sac_mujoco_tests(seed=seed, policy_type='koopman_residual')

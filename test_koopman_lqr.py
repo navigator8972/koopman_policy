@@ -94,7 +94,7 @@ def test_koopman_fit():
         train_phi=True, 
         train_phi_inv=True,
         train_metric=True,
-        ls_factor=10,
+        ls_factor=-1,
         n_itrs=500, 
         lr=1e-4, 
         verbose=True)
