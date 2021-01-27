@@ -41,8 +41,7 @@ class Block2DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
     def step(self, a):
         self.do_simulation(a, self.frame_skip)
         ob = self._get_obs()
-        pos = ob[:2]
-        dist = pos - GOAL
+        dist = ob[:2]
         reward_dist = -STATE_SCALE*np.linalg.norm(dist)
         reward_ctrl = -ACTION_SCALE * np.square(a).sum()
         reward = reward_dist + reward_ctrl
@@ -51,8 +50,7 @@ class Block2DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         self.t+=1
         if self.t >= T:
             done = True
-
-        ob[:2]-=GOAL
+       
         return ob, reward, done, dict(reward_dist=reward_dist, reward_ctrl=reward_ctrl)
 
     def viewer_setup(self):
@@ -68,13 +66,15 @@ class Block2DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
         return self._get_obs()
 
     def _get_obs(self):
-        return np.concatenate([
+        ob=np.concatenate([
             # self.model.data.qpos.flat[:7],
             # self.model.data.qvel.flat[:7],
             self.sim.data.qpos.flat[:2],
             self.sim.data.qvel.flat[:2],
             # self.get_body_com("blocky")[:2],
         ])
+        ob[:2]-=GOAL
+        return ob 
     
     def close(self):
         return True

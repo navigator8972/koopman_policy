@@ -109,3 +109,13 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
             dist = Independent(dist, 1)
 
         return (dist, dict(mean=dist.mean, log_std=(dist.variance**.5).log()))
+    
+    def set_state_goal_learnable(self, state_goal=None, learnable=True):
+        if self._kpm_ctrl._x_goal is not None:
+            if state_goal is not None:
+                assert(state_goal.shape == self._kpm_ctrl._x_goal.shape)
+                self._kpm_ctrl._x_goal = nn.Parameter(state_goal)
+            self._kpm_ctrl._x_goal.requires_grad=learnable
+        else:
+            print('No state goal is used.')
+        return

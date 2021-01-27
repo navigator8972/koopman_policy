@@ -28,8 +28,8 @@ def ppo_peginhole(ctxt=None, seed=1, policy_type='koopman'):
 
     """
     set_seed(seed)
-    #env = GymEnv('Block2D-v0')
-    env = GymEnv('YumiPeg-v0')
+    env = GymEnv('Block2D-v0')
+    # env = GymEnv('YumiPeg-v0')
 
     trainer = Trainer(ctxt)
 
@@ -70,6 +70,9 @@ def ppo_peginhole(ctxt=None, seed=1, policy_type='koopman'):
             use_state_goal=True
         )
 
+        #fix the goal at origin
+        policy.set_state_goal_learnable(state_goal=None, learnable=False)
+
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                               hidden_sizes=(32, 32),
                                               hidden_nonlinearity=torch.tanh,
@@ -99,7 +102,7 @@ def ppo_peginhole(ctxt=None, seed=1, policy_type='koopman'):
 
 #[1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
-seed = 512
+seed = 251
 ppo_peginhole(seed=seed, policy_type='vanilla')
 ppo_peginhole(seed=seed, policy_type='koopman')
 ppo_peginhole(seed=seed, policy_type='koopman_residual')
