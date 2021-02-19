@@ -123,7 +123,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman'):
             least_square_fit_coeff=-1,
             koopman_fit_coeff=10,
             koopman_fit_coeff_errbound=-1,
-            koopman_recons_coeff=-1
+            koopman_recons_coeff=10
             )
 
     if torch.cuda.is_available():
@@ -138,6 +138,6 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman'):
 #[1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
 seed = 1
-koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
+# koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
 koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman')
-koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual')
+# koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual')

@@ -79,6 +79,11 @@ class KoopmanLQRSAC(SAC):
             self.policy._kpm_ctrl._phi_affine.requires_grad = False
             self.policy._kpm_ctrl._u_affine.requires_grad = False
         
+        if self._koopman_recons_coeff < 0:
+            if self.policy._kpm_ctrl._phi_inv is not None:
+                for param in self.policy._kpm_ctrl._phi_inv.parameters():
+                    param.requires_grad = False
+        
         return
     
     def _evaluate_policy(self, epoch):
@@ -119,10 +124,13 @@ class KoopmanLQRSAC(SAC):
             fit_err = loss(g_pred, g_next)  
 
             #can only evaluate covariance for this
-            #this might be a bad idea because collected rollouts as normally distributed.
+            #this might be a bad idea by taking collected rollouts as normally distributed.
             # print(self.policy._kpm_ctrl._k, self.env_spec.observation_space.flat_dim)
             # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
             #     corrcoef_det = np.linalg.det(np.corrcoef(batch.observations[1:, :], torch_to_np(g_pred)))
+            if self._koopman_recons_coeff > 0:
+                obs_recons = self.policy._kpm_ctrl._phi_inv(g)
+                recons_err = loss(obs, obs_recons)
 
         with tabular.prefix(prefix + '/'):
             tabular.record('Koopman Fit Error', fit_err.item())
@@ -130,6 +138,8 @@ class KoopmanLQRSAC(SAC):
             #     tabular.record('Pearson Correlation', corrcoef_det)
             tabular.record('Koopman Fit Coeff', self._koopman_fit_coeff)
             
+            if self._koopman_recons_coeff > 0:
+                tabular.record('Koopman Recons Error', recons_err.item())
         return
 
     def _koopman_fit_objective(self, samples_data):
@@ -153,6 +163,15 @@ class KoopmanLQRSAC(SAC):
             fit_err = loss(g_pred, g_next)   
 
         return fit_err
+    
+    def _koopman_recons_objective(self, samples_data):
+        obs = samples_data['observation']
+        g = self.policy._kpm_ctrl._phi(obs)
+        obs_recons = self.policy._kpm_ctrl._phi_inv(g)
+
+        loss = nn.MSELoss()
+        recons_err = loss(obs, obs_recons)
+        return recons_err
     
     
     def optimize_policy(self, samples_data):
@@ -197,7 +216,10 @@ class KoopmanLQRSAC(SAC):
         if self._koopman_fit_coeff > 0:
             koopman_fit_err = self._koopman_fit_objective(samples_data)
             tol_loss = policy_loss + self._koopman_fit_coeff * koopman_fit_err
-
+        
+        if self._koopman_recons_coeff > 0:
+            koopman_recons_err = self._koopman_recons_objective(samples_data)
+            tol_loss = tol_loss + self._koopman_recons_coeff * koopman_recons_err
             
         self._policy_optimizer.zero_grad()
         tol_loss.backward()
