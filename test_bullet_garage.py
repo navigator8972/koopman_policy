@@ -29,13 +29,14 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.distributions import TanhNormal
 
 @wrap_experiment(snapshot_mode='none')
-def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman'):
+def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy_horizon=5):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
 
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
-    env = BulletEnv('InvertedPendulumBulletEnv-v0')
-        
+    #env = BulletEnv('InvertedPendulumBulletEnv-v0')
+    env = BulletEnv('ReacherBulletEnv-v0')
+
     #original hidden size 256
     hidden_size = 32
 
@@ -92,7 +93,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman'):
         policy = GaussianKoopmanLQRPolicy(
             env_spec=env.spec,
             k=4,   #use the same size of koopmanv variable
-            T=5,
+            T=policy_horizon,
             phi=[hidden_dim, hidden_dim],
             residual=residual,
             normal_distribution_cls=TanhNormal,
@@ -121,9 +122,9 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman'):
             steps_per_epoch=1,
             #new params
             least_square_fit_coeff=-1,
-            koopman_fit_coeff=10,
+            koopman_fit_coeff=-1,
             koopman_fit_coeff_errbound=-1,
-            koopman_recons_coeff=10
+            koopman_recons_coeff=-1
             )
 
     if torch.cuda.is_available():
@@ -135,9 +136,15 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman'):
     trainer.train(n_epochs=100, batch_size=1000, plot=False)
     return
 
-#[1, 21, 52, 251, 521]
+seeds = [1, 21, 52, 251, 521]
+#seeds = [251, 521]
 #[2, 12, 51, 125, 512]
-seed = 1
-# koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
-koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman')
-# koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual')
+for seed in seeds: 
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+
+#test the impact of time horizon
+#for seed in seeds:
+#    for h in [2, 5, 8, 12, 15]:
+#        koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)

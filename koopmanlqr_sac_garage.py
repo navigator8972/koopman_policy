@@ -216,7 +216,9 @@ class KoopmanLQRSAC(SAC):
         if self._koopman_fit_coeff > 0:
             koopman_fit_err = self._koopman_fit_objective(samples_data)
             tol_loss = policy_loss + self._koopman_fit_coeff * koopman_fit_err
-        
+        else:
+            tol_loss = policy_loss
+
         if self._koopman_recons_coeff > 0:
             koopman_recons_err = self._koopman_recons_objective(samples_data)
             tol_loss = tol_loss + self._koopman_recons_coeff * koopman_recons_err
