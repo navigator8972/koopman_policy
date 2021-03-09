@@ -18,7 +18,7 @@ from garage.trainer import Trainer
 
 import koopman_policy
 from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
-from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC
+from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC, KoopmanLQRSACParam
 
 from garage.replay_buffer import PathBuffer
 from garage.sampler import FragmentWorker, LocalSampler
@@ -28,14 +28,14 @@ from garage.torch.algos import SAC
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.distributions import TanhNormal
 
-@wrap_experiment(snapshot_mode='none')
+@wrap_experiment(snapshot_mode='last')
 def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy_horizon=5):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
 
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
-    #env = BulletEnv('InvertedPendulumBulletEnv-v0')
-    env = BulletEnv('ReacherBulletEnv-v0')
+    env = BulletEnv('InvertedPendulumBulletEnv-v0')
+    # env = BulletEnv('ReacherBulletEnv-v0')
 
     #original hidden size 256
     hidden_size = 32
@@ -106,6 +106,15 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                         max_episode_length=env.spec.max_episode_length,
                         worker_class=FragmentWorker)
 
+        koopman_param = KoopmanLQRSACParam(
+            least_square_fit_coeff=-1,
+            koopman_fit_coeff=1,
+            koopman_fit_coeff_errbound=-1,
+            koopman_fit_optim_lr=-1,
+            koopman_fit_n_itrs=25,
+            koopman_recons_coeff=10
+        )
+
         sac = KoopmanLQRSAC(env_spec=env.spec,
             policy=policy,
             qf1=qf1,
@@ -121,10 +130,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             reward_scale=1.,
             steps_per_epoch=1,
             #new params
-            least_square_fit_coeff=-1,
-            koopman_fit_coeff=-1,
-            koopman_fit_coeff_errbound=-1,
-            koopman_recons_coeff=-1
+            koopman_param=koopman_param
             )
 
     if torch.cuda.is_available():

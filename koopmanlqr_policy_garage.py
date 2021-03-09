@@ -119,3 +119,14 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
         else:
             print('No state goal is used.')
         return
+    
+    def get_koopman_params(self):
+        return self._kpm_ctrl._phi.parameters()
+    
+    def get_qr_params(self):
+        param = [self._kpm_ctrl._q_diag_log, self._kpm_ctrl._r_diag_log]
+        if self._kpm_ctrl._x_goal is not None:
+            param.append(self._kpm_ctrl._x_goal)
+        if self._kpm_ctrl._g_goal is not None:
+            param.append(self._kpm_ctrl._g_goal)
+        return param
