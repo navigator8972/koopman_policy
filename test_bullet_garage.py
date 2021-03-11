@@ -111,7 +111,8 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_fit_coeff=1,
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
-            koopman_fit_n_itrs=25,
+            koopman_fit_n_itrs=1,
+            koopman_fit_mat_reg_coeff=10,
             koopman_recons_coeff=10
         )
 

@@ -22,6 +22,7 @@ class KoopmanLQRSACParam():
             #otherwise, can also use a separate optimizer for alternating gradient descent, this will overlap the above settings
             koopman_fit_optim_lr=-1,        #learning rate for the koopman fit optimizer
             koopman_fit_n_itrs=1,           #number of iterations for a separate
+            koopman_fit_mat_reg_coeff=10,    #coefficient to penalize the norm of A and B
             #weight to account for reconstruction error from koopman observables, -1 means to ignore the term
             #shall we also have a separate optimizer for reconstruction? now lets stick to the same one with a different weight if this is needed
             koopman_recons_coeff=-1,     
@@ -31,6 +32,7 @@ class KoopmanLQRSACParam():
         self._koopman_fit_coeff_errbound = koopman_fit_coeff_errbound
         self._koopman_fit_optim_lr = koopman_fit_optim_lr
         self._koopman_fit_n_itrs = koopman_fit_n_itrs
+        self._koopman_fit_mat_reg_coeff = koopman_fit_mat_reg_coeff
         self._koopman_recons_coeff = koopman_recons_coeff
         return
 
@@ -274,6 +276,10 @@ class KoopmanLQRSAC(SAC):
             koopman_fit_err = self._koopman_fit_objective(samples_data)
             tol_loss = policy_loss + self._koopman_param._koopman_fit_coeff * koopman_fit_err
 
+            if self._koopman_param._koopman_fit_mat_reg_coeff > 0:
+                tol_loss = tol_loss + self._koopman_param._koopman_fit_mat_reg_coeff * (
+                    torch.norm(self.policy._kpm_ctrl._phi_affine, ord=1) + torch.norm(self.policy._kpm_ctrl._u_affine, ord=1))
+
             #now bind recons term with koopman fit, because i dont see why to only use recons as the aux obj
             if self._koopman_param._koopman_recons_coeff > 0:
                 koopman_recons_err = self._koopman_recons_objective(samples_data)
@@ -293,7 +299,7 @@ class KoopmanLQRSAC(SAC):
             alpha_loss.backward()
             self._alpha_optimizer.step()
 
-        # for now disable this because it didn't help much        
+        # for now disable this because it is unclear whether it helps to adapt for constraining a really small fit error 
         # if self._koopman_param._koopman_fit_coeff_errbound > 0:
         #     self._koopman_param._koopman_fit_coeff = max(0, 
         #             self._koopman_param._koopman_fit_coeff - self._policy_lr*(self._koopman_param._koopman_fit_coeff_errbound - koopman_fit_err.item()))
