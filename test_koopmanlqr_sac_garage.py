@@ -16,8 +16,8 @@ from garage.torch.value_functions import GaussianMLPValueFunction
 from garage.trainer import Trainer
 
 import koopman_policy
-from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
-from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC, KoopmanLQRSACParam
+from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy, KoopmanLQRRLParam
+from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC
 
 from garage.replay_buffer import PathBuffer
 from garage.sampler import FragmentWorker, LocalSampler
@@ -107,7 +107,7 @@ def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
                         max_episode_length=env.spec.max_episode_length,
                         worker_class=FragmentWorker)
 
-        koopman_param = KoopmanLQRSACParam(
+        koopman_param = KoopmanLQRRLParam(
             least_square_fit_coeff=-1,
             koopman_fit_coeff=10,
             koopman_fit_coeff_errbound=-1,

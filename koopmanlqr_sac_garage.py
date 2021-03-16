@@ -10,31 +10,7 @@ from garage import log_performance, obtain_evaluation_episodes, StepType
 
 from garage.torch import np_to_torch, torch_to_np, dict_np_to_torch
 
-class KoopmanLQRSACParam():
-    def __init__(
-            self,
-            #regularization term for least square if >0. -1 for not using least square to fit koopman
-            least_square_fit_coeff=-1, 
-            #weight to account for koopman fit error, -1 means not to account it
-            #this will merge koopman objectives with the main objective and apply gradient all together
-            koopman_fit_coeff=-1,
-            koopman_fit_coeff_errbound=-1,  #optimize koopman fit coefficient as lagrangian multipler as well to enforce the constraint of fit_err <= errbound
-            #otherwise, can also use a separate optimizer for alternating gradient descent, this will overlap the above settings
-            koopman_fit_optim_lr=-1,        #learning rate for the koopman fit optimizer
-            koopman_fit_n_itrs=1,           #number of iterations for a separate
-            koopman_fit_mat_reg_coeff=10,    #coefficient to penalize the norm of A and B
-            #weight to account for reconstruction error from koopman observables, -1 means to ignore the term
-            #shall we also have a separate optimizer for reconstruction? now lets stick to the same one with a different weight if this is needed
-            koopman_recons_coeff=-1,     
-            ):
-        self._least_square_fit_coeff = least_square_fit_coeff
-        self._koopman_fit_coeff = koopman_fit_coeff
-        self._koopman_fit_coeff_errbound = koopman_fit_coeff_errbound
-        self._koopman_fit_optim_lr = koopman_fit_optim_lr
-        self._koopman_fit_n_itrs = koopman_fit_n_itrs
-        self._koopman_fit_mat_reg_coeff = koopman_fit_mat_reg_coeff
-        self._koopman_recons_coeff = koopman_recons_coeff
-        return
+from koopman_policy.koopmanlqr_policy_garage import KoopmanLQRRLParam
 
 class KoopmanLQRSAC(SAC):
     def __init__(self,
@@ -63,7 +39,7 @@ class KoopmanLQRSAC(SAC):
             eval_env=None,
             use_deterministic_evaluation=True,
             #additional params for koopman policy
-            koopman_param=KoopmanLQRSACParam()
+            koopman_param=KoopmanLQRRLParam()
             ):
         super().__init__(env_spec,
             policy,
@@ -278,7 +254,7 @@ class KoopmanLQRSAC(SAC):
 
             if self._koopman_param._koopman_fit_mat_reg_coeff > 0:
                 tol_loss = tol_loss + self._koopman_param._koopman_fit_mat_reg_coeff * (
-                    torch.norm(self.policy._kpm_ctrl._phi_affine, ord=1) + torch.norm(self.policy._kpm_ctrl._u_affine, ord=1))
+                    torch.norm(self.policy._kpm_ctrl._phi_affine, p=1) + torch.norm(self.policy._kpm_ctrl._u_affine, p=1))
 
             #now bind recons term with koopman fit, because i dont see why to only use recons as the aux obj
             if self._koopman_param._koopman_recons_coeff > 0:
