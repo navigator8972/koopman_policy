@@ -7,52 +7,7 @@ import torch
 from torch import nn, optim
 
 import utils
-
-class FCNN(nn.Module):
-    """
-    Simple fully connected neural network.
-    """
-    def __init__(self, in_dim, out_dim, hidden_dim, hidden_nonlinearity=None, output_nonlinearity=None):
-        super().__init__()
-        if isinstance(hidden_dim, int): 
-            self.network = nn.Sequential(
-                nn.Linear(in_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, hidden_dim),
-                nn.ReLU(),
-                nn.Linear(hidden_dim, out_dim),
-            )
-        elif isinstance(hidden_dim, list):
-            modules = []
-            modules_dim = [in_dim]+hidden_dim+[out_dim]
-            for idx in range(len(modules_dim)-1):
-                modules.append(nn.Linear(modules_dim[idx], modules_dim[idx+1]))
-                if hidden_nonlinearity is None:
-                    modules.append(nn.ReLU())
-                else:
-                    modules.append(hidden_nonlinearity())
-            if output_nonlinearity is not None:
-                modules.append(output_nonlinearity())
-
-            self.network = nn.Sequential(*modules)
-        else:
-            # print(hidden_dim)
-            raise NotImplementedError
-
-        self.init_params()
-
-
-    def forward(self, x):
-        return self.network(x)
-    
-    def init_params(self):
-        def param_init(m):
-            if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                torch.nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    torch.nn.init.zeros_(m.bias)
-        
-        self.apply(param_init)
+from koopman_policy.utils import FCNN
 
 class KoopmanLQR(nn.Module):
     def __init__(self, k, x_dim, u_dim, x_goal, T, phi=None, u_affine=None, g_goal=None):
