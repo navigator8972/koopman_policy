@@ -49,34 +49,35 @@ class FCNN(nn.Module):
         
         self.apply(param_init)
 
-import geotorch
-import torch.nn.functional as F 
+# comment out for now because the torch version conflict between garage and geotorch (1.51 vs 1.80)
+# import geotorch
+# import torch.nn.functional as F 
 
-class OrthogonalOutputFCNN(FCNN):
-    """
-    FCNN with output layer, this stacks an orthogonal linear layer on top of an FCNN
-    so the net would be (in_dim, hidden_dim, out_dim, orthoutput_dim)
-    """
-    def __init__(self, in_dim, out_dim, orthoutput_dim, hidden_dim, hidden_nonlinearity=None):
-        #no output nonlinearity as we expect an orthogonal linear transformation
-        super().__init__(in_dim, out_dim, hidden_dim, hidden_nonlinearity, None)
-        #use transpose of mat instead of linear because it is more convenient for geotorch to enforce column orthogonality
-        self.orthogonal_transpose = nn.Linear(orthoutput_dim, out_dim, bias=False)
-        geotorch.constraints.orthogonal(self.orthogonal_transpose, 'weight')
-        return
+# class OrthogonalOutputFCNN(FCNN):
+#     """
+#     FCNN with output layer, this stacks an orthogonal linear layer on top of an FCNN
+#     so the net would be (in_dim, hidden_dim, out_dim, orthoutput_dim)
+#     """
+#     def __init__(self, in_dim, out_dim, orthoutput_dim, hidden_dim, hidden_nonlinearity=None):
+#         #no output nonlinearity as we expect an orthogonal linear transformation
+#         super().__init__(in_dim, out_dim, hidden_dim, hidden_nonlinearity, None)
+#         #use transpose of mat instead of linear because it is more convenient for geotorch to enforce column orthogonality
+#         self.orthogonal_transpose = nn.Linear(orthoutput_dim, out_dim, bias=False)
+#         geotorch.constraints.orthogonal(self.orthogonal_transpose, 'weight')
+#         return
     
-    #not sure if we should have a separate initialization for the orthogonal output layer
-    def init_params(self):
-        super().init_params()
-        # self.orthogonal_transpose.sample()
-        return
+#     #not sure if we should have a separate initialization for the orthogonal output layer
+#     def init_params(self):
+#         super().init_params()
+#         # self.orthogonal_transpose.sample()
+#         return
     
-    def forward(self, x):
-        with geotorch.parametrize.cached():
-            fcnn_output = self.network(x)
-            #apply this to orthogonal transpose as well
-            out = F.linear(fcnn_output, self.orthogonal_transpose.weight.T)
-        return out
+#     def forward(self, x):
+#         with geotorch.parametrize.cached():
+#             fcnn_output = self.network(x)
+#             #apply this to orthogonal transpose as well
+#             out = F.linear(fcnn_output, self.orthogonal_transpose.weight.T)
+#         return out
 
 def batch_mv(bmat, bvec):
     r"""
