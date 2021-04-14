@@ -152,6 +152,7 @@ class KoopmanLQRSAC(SAC):
 
     def _koopman_fit_objective(self, samples_data):
         obs = samples_data['observation']
+        # !!!! This, needs to go through an inverted tanh?
         acts = samples_data['action']
         # rewards = samples_data['reward'].flatten()
         # terminals = samples_data['terminal'].flatten()
@@ -254,7 +255,7 @@ class KoopmanLQRSAC(SAC):
 
             if self._koopman_param._koopman_fit_mat_reg_coeff > 0:
                 tol_loss = tol_loss + self._koopman_param._koopman_fit_mat_reg_coeff * (
-                    torch.norm(self.policy._kpm_ctrl._phi_affine, p=1) + torch.norm(self.policy._kpm_ctrl._u_affine, p=1))
+                    torch.norm(self.policy._kpm_ctrl._phi_affine, p=2) + torch.norm(self.policy._kpm_ctrl._u_affine, p=2))
 
             #now bind recons term with koopman fit, because i dont see why to only use recons as the aux obj
             if self._koopman_param._koopman_recons_coeff > 0:

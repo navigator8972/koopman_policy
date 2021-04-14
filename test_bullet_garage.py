@@ -7,6 +7,7 @@ import gym
 from garage import wrap_experiment
 # from garage.envs import GymEnv, normalize
 from garage.envs.bullet import BulletEnv
+from garage.envs import normalize
 
 from garage.experiment.deterministic import set_seed
 from garage.sampler import RaySampler
@@ -35,8 +36,9 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     trainer = Trainer(snapshot_config=ctxt)
 
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
-    env = BulletEnv('InvertedPendulumBulletEnv-v0')
+    # env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
     # env = BulletEnv('ReacherBulletEnv-v0')
+    env = normalize(BulletEnv('HalfCheetahBulletEnv-v0'))
 
     #original hidden size 256
     hidden_size = 32
@@ -113,8 +115,8 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=1,
-            koopman_fit_mat_reg_coeff=10,
-            koopman_recons_coeff=10
+            koopman_fit_mat_reg_coeff=0.1,
+            koopman_recons_coeff=1
         )
 
         sac = KoopmanLQRSAC(env_spec=env.spec,
@@ -141,7 +143,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=100, batch_size=1000, plot=False)
+    trainer.train(n_epochs=300, batch_size=1000, plot=False)
     return
 
 
@@ -208,7 +210,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=-1,
-            koopman_fit_mat_reg_coeff=1,
+            koopman_fit_mat_reg_coeff=10,
             koopman_recons_coeff=10
         )
 
@@ -236,20 +238,20 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                )
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=1500, plot=True)
+    trainer.train(n_epochs=100, batch_size=1500, plot=False)
     return
 
 seeds = [1, 21, 52, 251, 521]
 #seeds = [251, 521]
 #[2, 12, 51, 125, 512]
-# for seed in seeds: 
-#     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
-#     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
-#     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+for seed in seeds: 
+     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
+     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
+     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 
 #test the impact of time horizon
 #for seed in seeds:
 #    for h in [2, 5, 8, 12, 15]:
 #        koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
 
-koopmanlqr_ppo_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
+#koopmanlqr_ppo_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
