@@ -36,9 +36,9 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     trainer = Trainer(snapshot_config=ctxt)
 
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
-    # env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
+    env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
     # env = BulletEnv('ReacherBulletEnv-v0')
-    env = normalize(BulletEnv('HalfCheetahBulletEnv-v0'))
+    # env = normalize(BulletEnv('HalfCheetahBulletEnv-v0'))
 
     #original hidden size 256
     hidden_size = 32
@@ -242,7 +242,6 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     return
 
 seeds = [1, 21, 52, 251, 521]
-#seeds = [251, 521]
 #[2, 12, 51, 125, 512]
 for seed in seeds: 
      koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
@@ -255,3 +254,4 @@ for seed in seeds:
 #        koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
 
 #koopmanlqr_ppo_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
+#koopmanlqr_sac_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)

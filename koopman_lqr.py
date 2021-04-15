@@ -6,8 +6,7 @@ import numpy as np
 import torch
 from torch import nn, optim
 
-import utils
-from koopman_policy.utils import FCNN
+from koopman_policy.utils import FCNN, batch_mv
 
 class KoopmanLQR(nn.Module):
     def __init__(self, k, x_dim, u_dim, x_goal, T, phi=None, u_affine=None, g_goal=None):
@@ -96,7 +95,7 @@ class KoopmanLQR(nn.Module):
         B_trans = B.transpose(-2,-1)
         #initialization for backpropagation
         V = Q
-        v = utils.batch_mv(Q, goals[:, -1, :])
+        v = batch_mv(Q, goals[:, -1, :])
         for i in reversed(range(T)):
             # (B^T V B + R)^{-1}
             V_uu_inv = torch.inverse(
@@ -114,7 +113,7 @@ class KoopmanLQR(nn.Module):
                     A
                 )
 
-            k[i] = utils.batch_mv(torch.matmul(V_uu_inv,  B.transpose(-2, -1)), v)
+            k[i] = batch_mv(torch.matmul(V_uu_inv,  B.transpose(-2, -1)), v)
 
             #Ricatti difference equation
             # A-BK
@@ -122,7 +121,7 @@ class KoopmanLQR(nn.Module):
             # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
             V = torch.matmul(torch.matmul(A_trans, V), A_BK) + Q
             # v = (A-BK)^Tv + Q r
-            v = utils.batch_mv(A_BK.transpose(-2, -1), v) + utils.batch_mv(Q, goals[:, i, :])   
+            v = batch_mv(A_BK.transpose(-2, -1), v) + batch_mv(Q, goals[:, i, :])   
 
         # we might need to cat or stack to return them as tensors but for mpc maybe only the first time step is useful...
         # note K is for negative feedback, namely u = -Kx+k
@@ -227,7 +226,7 @@ class KoopmanLQR(nn.Module):
         '''
         #(1, B*T, k+u_dim)
         GU_cat = torch.cat([G, U], dim=2)
-        AB_cat = torch.bmm(utils.batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), G_next)
+        AB_cat = torch.bmm(batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), G_next)
 
         A_transpose = AB_cat[:, :G.shape[2], :]
         B_transpose = AB_cat[:, G.shape[2]:, :]        
@@ -280,5 +279,34 @@ class KoopmanLQR(nn.Module):
         K, k = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
         #apply the first control as mpc
         # print(K[0].shape, k[0].shape)
-        u = -utils.batch_mv(K[0], self._phi(x0)) + k[0] 
+        u = -batch_mv(K[0], self._phi(x0)) + k[0] 
         return u
+    
+    def _koopman_fit_loss(self, x, x_next, u, ls_factor):
+        g = self._phi(x)
+        g_next = self._phi(x_next)
+
+        if ls_factor > 0:
+            A, B, fit_err = self._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), u.unsqueeze(0), I_factor=ls_factor)
+            #assign A and B to control parameter for future evaluation
+            self._phi_affine = nn.Parameter(A, requires_grad=False)
+            self._u_affine = nn.Parameter(B, requires_grad=False)
+        else:
+            g_pred = torch.matmul(g, self._phi_affine.transpose(0, 1))+torch.matmul(u, self._u_affine.transpose(0, 1))
+            loss = nn.MSELoss()
+            fit_err = loss(g_pred, g_next)   
+        
+        return fit_err
+    
+    def _koopman_recons_loss(self, x):
+        # assert self._phi_inv is not None
+        g = self._phi(x)
+        x_recons = self._phi_inv(g)
+
+        loss = nn.MSELoss()
+        recons_err = loss(x, x_recons)
+        return recons_err
+    
+    def _koopman_matreg_loss(self):
+        matreg_loss = torch.norm(self._phi_affine, p=2) + torch.norm(self._u_affine, p=2)
+        return matreg_loss

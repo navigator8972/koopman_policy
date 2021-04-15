@@ -129,7 +129,10 @@ def batch_pinv(x, I_factor, use_gpu=False):
 
     return x_pinv
 
-
+def tanh_inv(x, epsilon=1e-6):
+    pre_tanh_value = torch.log(
+    (1 + epsilon + x) / (1 + epsilon - x)) / 2
+    return pre_tanh_value
 
 # net = OrthogonalOutputFCNN(4, 32, 4, [32, 32])
 # print(net.orthogonal_transpose.weight.T @ net.orthogonal_transpose.weight)

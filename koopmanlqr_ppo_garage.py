@@ -62,28 +62,13 @@ class KoopmanLQRPPO(PPO):
         # terminals = samples_data['terminal'].flatten()
         next_obs = samples_data['next_observation']
 
-        g = self.policy._kpm_ctrl._phi(obs)
-        g_next = self.policy._kpm_ctrl._phi(next_obs)
-
-        if self._koopman_param._least_square_fit_coeff > 0:
-            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), acts.unsqueeze(0), I_factor=self._least_square_fit_coeff)
-            #assign A and B to control parameter for future evaluation
-            self.policy._kpm_ctrl._phi_affine = nn.Parameter(A, requires_grad=False)
-            self.policy._kpm_ctrl._u_affine = nn.Parameter(B, requires_grad=False)
-        else:
-            g_pred = torch.matmul(g, self.policy._kpm_ctrl._phi_affine.transpose(0, 1))+torch.matmul(acts, self.policy._kpm_ctrl._u_affine.transpose(0, 1))
-            loss = nn.MSELoss()
-            fit_err = loss(g_pred, g_next)   
+        fit_err = self.policy._kpm_ctrl._koopman_fit_loss(obs, next_obs, acts, self._koopman_param._least_square_fit_coeff)
 
         return fit_err
     
     def _koopman_recons_objective(self, samples_data):
         obs = samples_data['observation']
-        g = self.policy._kpm_ctrl._phi(obs)
-        obs_recons = self.policy._kpm_ctrl._phi_inv(g)
-
-        loss = nn.MSELoss()
-        recons_err = loss(obs, obs_recons)
+        recons_err = self.policy._kpm_ctrl._koopman_recons_loss(obs)
         return recons_err
 
     def _compute_objective(self, advantages, obs, actions, rewards):
@@ -103,8 +88,7 @@ class KoopmanLQRPPO(PPO):
             tol_obj = ppo_obj - self._koopman_param._koopman_fit_coeff * koopman_fit_err
 
             if self._koopman_param._koopman_fit_mat_reg_coeff > 0:
-                tol_obj = tol_obj - self._koopman_param._koopman_fit_mat_reg_coeff * (
-                    torch.norm(self.policy._kpm_ctrl._phi_affine, p=1) + torch.norm(self.policy._kpm_ctrl._u_affine, p=1))
+                tol_obj = tol_obj - self._koopman_param._koopman_fit_mat_reg_coeff * self.policy._kpm_ctrl._koopman_matreg_loss()
 
             #now bind recons term with koopman fit, because i dont see why to only use recons as the aux obj
             if self._koopman_param._koopman_recons_coeff > 0:

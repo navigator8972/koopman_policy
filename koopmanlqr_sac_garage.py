@@ -12,6 +12,8 @@ from garage.torch import np_to_torch, torch_to_np, dict_np_to_torch
 
 from koopman_policy.koopmanlqr_policy_garage import KoopmanLQRRLParam
 
+from koopman_policy.utils import tanh_inv
+
 class KoopmanLQRSAC(SAC):
     def __init__(self,
             env_spec,
@@ -121,15 +123,11 @@ class KoopmanLQRSAC(SAC):
         # print(batch.observations.shape)
         obs = np_to_torch(batch.observations[:-1, :])
         next_obs = np_to_torch(batch.observations[1:, :])
-        acts = np_to_torch(batch.actions[:-1, :])
+        tanh_acts = np_to_torch(batch.actions[:-1, :])
+        acts = tanh_inv(tanh_acts)
 
         with torch.no_grad():
-            g = self.policy._kpm_ctrl._phi(obs)
-            g_next = self.policy._kpm_ctrl._phi(next_obs)
-
-            g_pred = torch.matmul(g, self.policy._kpm_ctrl._phi_affine.transpose(0, 1))+torch.matmul(acts, self.policy._kpm_ctrl._u_affine.transpose(0, 1))
-            loss = nn.MSELoss()
-            fit_err = loss(g_pred, g_next)  
+            fit_err = self.policy._kpm_ctrl._koopman_fit_loss(obs, next_obs, acts, -1)
 
             #can only evaluate covariance for this
             #this might be a bad idea by taking collected rollouts as normally distributed.
@@ -137,8 +135,7 @@ class KoopmanLQRSAC(SAC):
             # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
             #     corrcoef_det = np.linalg.det(np.corrcoef(batch.observations[1:, :], torch_to_np(g_pred)))
             if self._koopman_param._koopman_recons_coeff > 0:
-                obs_recons = self.policy._kpm_ctrl._phi_inv(g)
-                recons_err = loss(obs, obs_recons)
+                recons_err = self.policy._kpm_ctrl._koopman_recons_loss(obs)
 
         with tabular.prefix(prefix + '/'):
             tabular.record('Koopman Fit Error', fit_err.item())
@@ -153,33 +150,19 @@ class KoopmanLQRSAC(SAC):
     def _koopman_fit_objective(self, samples_data):
         obs = samples_data['observation']
         # !!!! This, needs to go through an inverted tanh?
-        acts = samples_data['action']
+        tanh_acts = samples_data['action']
+        acts = tanh_inv(tanh_acts)
         # rewards = samples_data['reward'].flatten()
         # terminals = samples_data['terminal'].flatten()
         next_obs = samples_data['next_observation']
 
-        g = self.policy._kpm_ctrl._phi(obs)
-        g_next = self.policy._kpm_ctrl._phi(next_obs)
-
-        if self._koopman_param._least_square_fit_coeff > 0:
-            A, B, fit_err = self.policy._kpm_ctrl._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), acts.unsqueeze(0), I_factor=self._least_square_fit_coeff)
-            #assign A and B to control parameter for future evaluation
-            self.policy._kpm_ctrl._phi_affine = nn.Parameter(A, requires_grad=False)
-            self.policy._kpm_ctrl._u_affine = nn.Parameter(B, requires_grad=False)
-        else:
-            g_pred = torch.matmul(g, self.policy._kpm_ctrl._phi_affine.transpose(0, 1))+torch.matmul(acts, self.policy._kpm_ctrl._u_affine.transpose(0, 1))
-            loss = nn.MSELoss()
-            fit_err = loss(g_pred, g_next)   
+        fit_err = self.policy._kpm_ctrl._koopman_fit_loss(obs, next_obs, acts, self._koopman_param._least_square_fit_coeff)
 
         return fit_err
     
     def _koopman_recons_objective(self, samples_data):
         obs = samples_data['observation']
-        g = self.policy._kpm_ctrl._phi(obs)
-        obs_recons = self.policy._kpm_ctrl._phi_inv(g)
-
-        loss = nn.MSELoss()
-        recons_err = loss(obs, obs_recons)
+        recons_err = self.policy._kpm_ctrl._koopman_recons_loss(obs)
         return recons_err
     
     def optimize_koopman_aux(self):
@@ -254,8 +237,7 @@ class KoopmanLQRSAC(SAC):
             tol_loss = policy_loss + self._koopman_param._koopman_fit_coeff * koopman_fit_err
 
             if self._koopman_param._koopman_fit_mat_reg_coeff > 0:
-                tol_loss = tol_loss + self._koopman_param._koopman_fit_mat_reg_coeff * (
-                    torch.norm(self.policy._kpm_ctrl._phi_affine, p=2) + torch.norm(self.policy._kpm_ctrl._u_affine, p=2))
+                tol_loss = tol_loss + self._koopman_param._koopman_fit_mat_reg_coeff * self.policy._kpm_ctrl._koopman_matreg_loss()
 
             #now bind recons term with koopman fit, because i dont see why to only use recons as the aux obj
             if self._koopman_param._koopman_recons_coeff > 0:
