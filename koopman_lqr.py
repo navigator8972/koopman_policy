@@ -282,6 +282,26 @@ class KoopmanLQR(nn.Module):
         u = -batch_mv(K[0], self._phi(x0)) + k[0] 
         return u
     
+    def forward_quadratic_cost(self, x, u=None):
+        #evaluate the cost of x with quadratic parameters
+        #x:         (B, d_x)
+        #u:         (B, d_u)
+        #return :   (B,)
+        if isinstance(self._x_goal, nn.Module):
+            raise NotImplementedError
+        else:
+            if self._x_goal is not None:
+                #populate g_goal with x_goal
+                g_goal = self._phi(self._x_goal) 
+            else:
+                g_goal = self._g_goal
+
+            cost = torch.sum((kpm._phi(x)-g_goal)**2 * self._q_diag_log.exp()[None, :], dim=1)
+
+            if u is not None:
+                cost = cost + torch.sum(u**2 * self._r_diag_log.exp()[None, :], dim=1)
+        return cost
+    
     def _koopman_fit_loss(self, x, x_next, u, ls_factor):
         g = self._phi(x)
         g_next = self._phi(x_next)

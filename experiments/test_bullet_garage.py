@@ -198,7 +198,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             phi=[hidden_dim, hidden_dim],
             residual=residual,
             init_std=1.0,
-            use_state_goal=True
+            use_state_goal=False
         )
 
         #fix the goal at origin
