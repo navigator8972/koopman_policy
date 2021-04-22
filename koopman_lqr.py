@@ -91,6 +91,9 @@ class KoopmanLQR(nn.Module):
         K = [None] * T
         k = [None] * T
 
+        V_array = [None] * T
+        v_array = [None] * T
+
         A_trans = A.transpose(-2,-1)
         B_trans = B.transpose(-2,-1)
         #initialization for backpropagation
@@ -115,6 +118,9 @@ class KoopmanLQR(nn.Module):
 
             k[i] = batch_mv(torch.matmul(V_uu_inv,  B.transpose(-2, -1)), v)
 
+            V_array[i] = V
+            v_array[i] = v
+
             #Ricatti difference equation
             # A-BK
             A_BK = A - torch.matmul(B, K[i])
@@ -125,7 +131,7 @@ class KoopmanLQR(nn.Module):
 
         # we might need to cat or stack to return them as tensors but for mpc maybe only the first time step is useful...
         # note K is for negative feedback, namely u = -Kx+k
-        return K, k
+        return K, k, V_array, v_array
 
     def fit_koopman(self, X, U,         
             train_phi=True,         #whether train encoder or not
@@ -276,7 +282,7 @@ class KoopmanLQR(nn.Module):
             assert(self._g_goal is not None)
             goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
             
-        K, k = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
+        K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
         #apply the first control as mpc
         # print(K[0].shape, k[0].shape)
         u = -batch_mv(K[0], self._phi(x0)) + k[0] 

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 def test_solve_lqr():
     #these params do not matter
-    ctrl = kpm.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=np.zeros(4), T=100, phi=None, u_affine=None)
+    ctrl = kpm.KoopmanLQR(k=4, x_dim=4, u_dim=2, x_goal=torch.from_numpy(np.zeros(4)), T=100, phi=None, u_affine=None)
 
 
     dt = 0.01
@@ -38,11 +38,11 @@ def test_solve_lqr():
     R = np.eye(2)*0.01
 
     #remember to account batch dimension
-    K, k = ctrl._solve_lqr(     A=torch.from_numpy(A).unsqueeze(0),
-                                B=torch.from_numpy(B).unsqueeze(0),
-                                Q=torch.from_numpy(Q).unsqueeze(0),
-                                R=torch.from_numpy(R).unsqueeze(0),
-                                goals=torch.from_numpy(ref).unsqueeze(0))
+    K, k, V, v = ctrl._solve_lqr(   A=torch.from_numpy(A).unsqueeze(0),
+                                    B=torch.from_numpy(B).unsqueeze(0),
+                                    Q=torch.from_numpy(Q).unsqueeze(0),
+                                    R=torch.from_numpy(R).unsqueeze(0),
+                                    goals=torch.from_numpy(ref).unsqueeze(0))
     # print(K)
     # print(k)
     
@@ -191,6 +191,6 @@ def test_mpc():
     return
 
 if __name__ == "__main__":
-    # test_solve_lqr()
-    test_koopman_fit()
+    test_solve_lqr()
+    #test_koopman_fit()
     # test_mpc()    
