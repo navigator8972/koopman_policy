@@ -9,11 +9,33 @@ from garage.np import discount_cumsum, stack_tensor_dict_list
 
 import argparse
 
+def save_numpy_to_video_matplotlib(array, filename, interval=50):
+    from matplotlib import animation
+    from matplotlib import pyplot as plt
+
+    fig = plt.figure(frameon=False)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.axis('off')
+
+    img = ax.imshow(array[0])
+
+    def img_show(i):
+        img.set_array(array[i])
+        # print("updating image {}".format(i))
+        return [img]
+
+    ani = animation.FuncAnimation(fig, img_show, len(array), interval=interval)
+
+    #ani.save('{}.gif'.format(filename), writer='imagemagick', fps=1000/interval)
+    ani.save('{}.mp4'.format(filename))
+    return
+
 def rollout(env,
             agent,
             *,
             max_episode_length=np.inf,
             animated=False,
+            video_name=None,
             pause_per_frame=None,
             deterministic=False):
     """Sample a single episode of the agent in the environment.
@@ -60,10 +82,10 @@ def rollout(env,
     agent.reset()
     episode_length = 0
     
-        
+    image_array = []    
     while episode_length < (max_episode_length or np.inf):
-        # img = env._env.render(mode='rgb_array')
-        # print(img.shape)
+        img = env._env.render(mode='rgb_array')
+        image_array.append(img)
 
         if pause_per_frame is not None:
             time.sleep(pause_per_frame)
@@ -78,6 +100,9 @@ def rollout(env,
         if es.last:
             break
         last_obs = es.observation
+    
+    if video_name is not None:
+        save_numpy_to_video_matplotlib(image_array, video_name, interval=pause_per_frame*1000)
 
     return dict(
         episode_infos=episode_infos,
@@ -91,7 +116,6 @@ def rollout(env,
 
 def main():
     parser = argparse.ArgumentParser(description='Process some integers.')
-    # ['PassWater', 'PourWater', 'PourWaterAmount', 'RopeFlatten', 'ClothFold', 'ClothFlatten', 'ClothDrop', 'ClothFoldCrumpled', 'ClothFoldDrop', 'RopeConfiguration']
     parser.add_argument('--snapshot_dir', type=str, default='')
 
     args = parser.parse_args()
@@ -111,7 +135,7 @@ def main():
     
     # See what the trained policy can accomplish
     print('Starting to run a rollout...')
-    path = rollout(env, policy, animated=True, pause_per_frame=0.01, deterministic=True)
+    path = rollout(env, policy, max_episode_length=500, animated=True, video_name='test', pause_per_frame=0.01, deterministic=True)
     
     return
 
