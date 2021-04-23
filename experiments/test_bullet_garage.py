@@ -30,7 +30,7 @@ from garage.torch.algos import SAC
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.distributions import TanhNormal
 
-@wrap_experiment(snapshot_mode='last')
+@wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
 def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy_horizon=5):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
@@ -147,7 +147,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     return
 
 
-@wrap_experiment(snapshot_mode='last')
+@wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
 def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy_horizon=5):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
