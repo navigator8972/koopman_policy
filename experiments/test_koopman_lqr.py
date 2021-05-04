@@ -190,7 +190,29 @@ def test_mpc():
 
     return
 
+def test_cost_to_go():
+    goal = torch.from_numpy(np.zeros(2)).float()
+    ctrl = kpm.KoopmanLQR(k=2, x_dim=2, u_dim=2, x_goal=goal, T=15, phi=nn.Identity(), u_affine=None, g_goal=None)
+    A = np.eye(2)
+    B = np.eye(2)
+    Q = np.array([10, 3])
+
+    ctrl._phi_affine = nn.Parameter(torch.from_numpy(A).float())
+    ctrl._u_affine = nn.Parameter(torch.from_numpy(B).float())
+    ctrl._q_diag_log = nn.Parameter(torch.from_numpy(Q).float().log())
+
+    n_pnts = 50
+    x0 = np.array([[[x, y] for y in np.linspace(-10, 10, n_pnts)] for x in np.linspace(-10, 10, n_pnts)])
+    x0 = torch.from_numpy(x0).float().view((-1, 2))
+    cost_to_go = ctrl.forward_cost_to_go(x0)
+    #verify a quadratic cost-to-go for lqr
+    img = cost_to_go.detach().numpy().reshape(n_pnts, n_pnts)
+    plt.imshow(img)
+    plt.show()
+
+
 if __name__ == "__main__":
-    test_solve_lqr()
+    #test_solve_lqr()
     #test_koopman_fit()
     # test_mpc()    
+    test_cost_to_go()

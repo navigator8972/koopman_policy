@@ -91,19 +91,19 @@ class KoopmanLQR(nn.Module):
         K = [None] * T
         k = [None] * T
 
-        V_array = [None] * T
-        v_array = [None] * T
+        V = [None] * (T+1)
+        v = [None] * (T+1)
 
         A_trans = A.transpose(-2,-1)
         B_trans = B.transpose(-2,-1)
         #initialization for backpropagation
-        V = Q
-        v = batch_mv(Q, goals[:, -1, :])
+        V[-1] = Q
+        v[-1] = batch_mv(Q, goals[:, -1, :])
         for i in reversed(range(T)):
             # (B^T V B + R)^{-1}
             V_uu_inv = torch.inverse(
                 torch.matmul(
-                torch.matmul(B_trans, V),
+                torch.matmul(B_trans, V[i+1]),
                 B
                 ) + R
             ) 
@@ -111,27 +111,24 @@ class KoopmanLQR(nn.Module):
             K[i] = torch.matmul(
                     torch.matmul(
                         torch.matmul(V_uu_inv,  B_trans),
-                        V
+                        V[i+1]
                     ),
                     A
                 )
 
-            k[i] = batch_mv(torch.matmul(V_uu_inv,  B.transpose(-2, -1)), v)
-
-            V_array[i] = V
-            v_array[i] = v
+            k[i] = batch_mv(torch.matmul(V_uu_inv,  B.transpose(-2, -1)), v[i+1])
 
             #Ricatti difference equation
             # A-BK
             A_BK = A - torch.matmul(B, K[i])
             # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
-            V = torch.matmul(torch.matmul(A_trans, V), A_BK) + Q
+            V[i] = torch.matmul(torch.matmul(A_trans, V[i+1]), A_BK) + Q
             # v = (A-BK)^Tv + Q r
-            v = batch_mv(A_BK.transpose(-2, -1), v) + batch_mv(Q, goals[:, i, :])   
+            v[i] = batch_mv(A_BK.transpose(-2, -1), v[i+1]) + batch_mv(Q, goals[:, i, :])   
 
         # we might need to cat or stack to return them as tensors but for mpc maybe only the first time step is useful...
         # note K is for negative feedback, namely u = -Kx+k
-        return K, k, V_array, v_array
+        return K, k, V, v
 
     def fit_koopman(self, X, U,         
             train_phi=True,         #whether train encoder or not
@@ -307,6 +304,26 @@ class KoopmanLQR(nn.Module):
             if u is not None:
                 cost = cost + torch.sum(u**2 * self._r_diag_log.exp()[None, :], dim=1)
         return cost
+    
+    def forward_cost_to_go(self, x0):
+        #evaluate the cost-to-go of x up to a constant
+        #x:         (B, d_x)
+        #return:    (B,)
+        Q = torch.diag(self._q_diag_log.exp()).unsqueeze(0)
+        R = torch.diag(self._r_diag_log.exp()).unsqueeze(0)
+        if self._x_goal is not None:
+            #this might have efficiency issue since the goal needs to be populated every call?
+            goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+        else:
+            #use g_goal instead
+            assert(self._g_goal is not None)
+            goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+            
+        K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
+
+        phi = self._phi(x0)
+        cost_to_go = 0.5 * (phi * batch_mv(V[0], phi)).sum(-1) - (phi * v[1]).sum(-1)
+        return cost_to_go
     
     def _koopman_fit_loss(self, x, x_next, u, ls_factor):
         g = self._phi(x)
