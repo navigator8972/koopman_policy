@@ -23,7 +23,7 @@ from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC
 from koopman_policy.koopmanlqr_ppo_garage import KoopmanLQRPPO
 
 from garage.replay_buffer import PathBuffer
-from garage.sampler import FragmentWorker, LocalSampler
+from garage.sampler import DefaultWorker, LocalSampler
 from garage.torch import set_gpu_mode
 from garage.torch.algos import SAC
 
@@ -67,7 +67,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         sampler = LocalSampler(agents=policy,
                         envs=env,
                         max_episode_length=env.spec.max_episode_length,
-                        worker_class=FragmentWorker)
+                        worker_class=DefaultWorker)
 
         sac = SAC(env_spec=env.spec,
             policy=policy,
@@ -107,7 +107,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         sampler = LocalSampler(agents=policy,
                         envs=env,
                         max_episode_length=env.spec.max_episode_length,
-                        worker_class=FragmentWorker)
+                        worker_class=DefaultWorker)
 
         koopman_param = KoopmanLQRRLParam(
             least_square_fit_coeff=-1,
@@ -255,12 +255,12 @@ seeds = [1, 21, 52, 251, 521]
 #seeds = [251, 521]
 #[2, 12, 51, 125, 512]
 for seed in seeds: 
-#     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
-#     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
-#     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
-      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
-      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
-      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+#      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
+#      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
+#      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 #test the impact of time horizon
 #for seed in seeds:
 #    for h in [2, 5, 8, 12, 15]:

@@ -16,7 +16,7 @@ from garage.sampler import RaySampler, LocalSampler
 import koopman_policy
 from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
 
-@wrap_experiment
+@wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
 def ppo_peginhole(ctxt=None, seed=1, policy_type='koopman'):
     """Train PPO with PegInHole environment.
 

@@ -28,7 +28,7 @@ from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.distributions import TanhNormal
 
 
-@wrap_experiment(snapshot_mode='none')
+@wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
 def koopmanlqr_sac_mujoco_tests(ctxt=None, seed=1, policy_type='koopman'):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)

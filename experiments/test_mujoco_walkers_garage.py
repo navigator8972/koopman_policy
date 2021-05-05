@@ -18,7 +18,7 @@ from garage.trainer import Trainer
 import koopman_policy
 from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
 
-@wrap_experiment
+@wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
 def ppo_mujoco_walkers(ctxt=None, seed=1):
     """Train PPO with Mujoco walker environments.
 
