@@ -31,7 +31,8 @@ from softgym.registered_env import env_arg_dict, SOFTGYM_ENVS
 # from softgym.utils.normalized_env import normalize
 
 import koopman_policy
-from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy 
+from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy, KoopmanLQRRLParam
+from koopman_policy.koopmanlqr_sac_garage import 
 
 
 @wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
