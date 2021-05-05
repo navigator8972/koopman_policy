@@ -64,44 +64,6 @@ def sac_softgym(ctxt=None, seed=1, policy_type='koopman', args=None):
     #original hidden size 256
     hidden_size = 32
 
-    if policy_type == 'vanilla':
-        policy = TanhGaussianMLPPolicy(
-            env_spec=env.spec,
-            hidden_sizes=[hidden_size, hidden_size],
-            hidden_nonlinearity=nn.ReLU,
-            output_nonlinearity=None,
-            min_std=np.exp(-20.),
-            max_std=np.exp(2.),
-        )
-    else:
-        in_dim = env.spec.observation_space.flat_dim
-        hidden_dim = hidden_size
-        out_dim = env.spec.action_space.flat_dim
-
-        if policy_type == 'koopman':
-            residual = None
-        else:
-            # residual = nn.Sequential(
-            #     nn.Linear(in_dim, hidden_dim),
-            #     nn.ReLU(),
-            #     nn.Linear(hidden_dim, hidden_dim),
-            #     nn.ReLU(),
-            #     nn.Linear(hidden_dim, out_dim),
-            # )            
-            residual = koopman_policy.koopman_lqr.FCNN(in_dim, out_dim, [hidden_dim, hidden_dim], hidden_nonlinearity=nn.ReLU)
-        
-        policy = GaussianKoopmanLQRPolicy(
-            env_spec=env.spec,
-            k=4,
-            T=5,
-            phi=[hidden_dim, hidden_dim],
-            residual=residual,
-            normal_distribution_cls=TanhNormal,
-            init_std=1.0,
-            use_state_goal=False    #non regularization task, should be more flexible?
-        )
-
-    
     qf1 = ContinuousMLPQFunction(env_spec=env.spec,
                                  hidden_sizes=[hidden_size, hidden_size],
                                  hidden_nonlinearity=F.relu)
@@ -112,26 +74,89 @@ def sac_softgym(ctxt=None, seed=1, policy_type='koopman', args=None):
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 
-    sampler = LocalSampler(agents=policy,
-                           envs=env,
-                           max_episode_length=env.spec.max_episode_length,
-                           n_workers=1,                 #be conservative here...
-                           worker_class=DefaultWorker)
 
-    sac = SAC(env_spec=env.spec,
-              policy=policy,
-              qf1=qf1,
-              qf2=qf2,
-              sampler=sampler,
-              gradient_steps_per_itr=1000,
-              max_episode_length_eval=100,
-              replay_buffer=replay_buffer,
-              min_buffer_size=1e4,
-              target_update_tau=5e-3,
-              discount=0.99,
-              buffer_batch_size=256,
-              reward_scale=1.,
-              steps_per_epoch=1)
+    if policy_type == 'vanilla':
+        policy = TanhGaussianMLPPolicy(
+            env_spec=env.spec,
+            hidden_sizes=[hidden_size, hidden_size],
+            hidden_nonlinearity=nn.ReLU,
+            output_nonlinearity=None,
+            min_std=np.exp(-20.),
+            max_std=np.exp(2.),
+        )
+
+        sampler = LocalSampler(agents=policy,
+                        envs=env,
+                        max_episode_length=env.spec.max_episode_length,
+                        worker_class=DefaultWorker)
+
+        sac = SAC(env_spec=env.spec,
+            policy=policy,
+            qf1=qf1,
+            qf2=qf2,
+            sampler=sampler,
+            gradient_steps_per_itr=1000,
+            max_episode_length_eval=500,
+            replay_buffer=replay_buffer,
+            min_buffer_size=1e4,
+            target_update_tau=5e-3,
+            discount=0.99,
+            buffer_batch_size=256,
+            reward_scale=1.,
+            steps_per_epoch=1)
+    else:
+        in_dim = env.spec.observation_space.flat_dim
+        hidden_dim = hidden_size
+        out_dim = env.spec.action_space.flat_dim
+
+        if policy_type == 'koopman':
+            residual = None
+        else:
+            residual = koopman_policy.koopman_lqr.FCNN(in_dim, out_dim, [hidden_dim, hidden_dim], hidden_nonlinearity=nn.ReLU)
+        
+        policy = GaussianKoopmanLQRPolicy(
+            env_spec=env.spec,
+            k=4,   #use the same size of koopmanv variable
+            T=policy_horizon,
+            phi=[hidden_dim, hidden_dim],
+            residual=residual,
+            normal_distribution_cls=TanhNormal,
+            init_std=1.0,
+            use_state_goal=False,   #non regularization task, should be flexible?
+        )
+
+        sampler = LocalSampler(agents=policy,
+                        envs=env,
+                        max_episode_length=env.spec.max_episode_length,
+                        worker_class=DefaultWorker)
+
+        koopman_param = KoopmanLQRRLParam(
+            least_square_fit_coeff=-1,
+            koopman_fit_coeff=1,
+            koopman_fit_coeff_errbound=-1,
+            koopman_fit_optim_lr=-1,
+            koopman_fit_n_itrs=1,
+            koopman_fit_mat_reg_coeff=0.1,
+            koopman_recons_coeff=1
+        )
+
+        sac = KoopmanLQRSAC(env_spec=env.spec,
+            policy=policy,
+            qf1=qf1,
+            qf2=qf2,
+            sampler=sampler,
+            gradient_steps_per_itr=1000,
+            max_episode_length_eval=500,
+            replay_buffer=replay_buffer,
+            min_buffer_size=1e4,
+            target_update_tau=5e-3,
+            discount=0.99,
+            buffer_batch_size=256,
+            reward_scale=1.,
+            steps_per_epoch=1,
+            #new params
+            koopman_param=koopman_param
+            )
 
     if torch.cuda.is_available():
         set_gpu_mode(True)
