@@ -35,7 +35,7 @@ from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy
 
 
 @wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
-def sac_softgym(ctxt=None, seed=1, policy_type='koopman', args=None):
+def sac_softgym(ctxt=None, seed=1, policy_type='koopman', , policy_horizon=5, args=None):
     set_seed(seed)
 
     assert(args is not None)
