@@ -50,6 +50,9 @@ def sac_softgym(ctxt=None, seed=1, policy_type='koopman', args=None):
     env_kwargs['render'] = True
     # env_kwargs['headless'] = args.headless
     env_kwargs['headless'] = 1
+    
+    # use only point cloud or keypoint representation
+    env_kwargs['observation_mode'] = 'key_point'
 
     softgym_env = SOFTGYM_ENVS[args.env_name](**env_kwargs)
     #need to assign max_episode_length to prevent complaints from samplers
