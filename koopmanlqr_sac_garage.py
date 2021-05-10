@@ -2,6 +2,7 @@ import numpy as np
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from dowel import tabular
 
@@ -146,6 +147,76 @@ class KoopmanLQRSAC(SAC):
             if self._koopman_param._koopman_recons_coeff > 0:
                 tabular.record('Koopman Recons Error', recons_err.item())
         return
+    
+    def _critic_objective(self, samples_data):
+        """Compute the Q-function/critic loss.
+        Args:
+            samples_data (dict): Transitions(S,A,R,S') that are sampled from
+                the replay buffer. It should have the keys 'observation',
+                'action', 'reward', 'terminal', and 'next_observations'.
+        Note:
+            samples_data's entries should be torch.Tensor's with the following
+            shapes:
+                observation: :math:`(N, O^*)`
+                action: :math:`(N, A^*)`
+                reward: :math:`(N, 1)`
+                terminal: :math:`(N, 1)`
+                next_observation: :math:`(N, O^*)`
+        Returns:
+            torch.Tensor: loss from 1st q-function after optimization.
+            torch.Tensor: loss from 2nd q-function after optimization.
+        """
+        obs = samples_data['observation']
+        actions = samples_data['action']
+        rewards = samples_data['reward'].flatten()
+        terminals = samples_data['terminal'].flatten()
+        next_obs = samples_data['next_observation']
+        with torch.no_grad():
+            alpha = self._get_log_alpha(samples_data).exp()
+
+        q1_pred = self._qf1(obs, actions)
+        q2_pred = self._qf2(obs, actions)
+
+        new_next_actions_dist = self.policy(next_obs)[0]
+        new_next_actions_pre_tanh, new_next_actions = (
+            new_next_actions_dist.rsample_with_pre_tanh_value())
+        new_log_pi = new_next_actions_dist.log_prob(
+            value=new_next_actions, pre_tanh_value=new_next_actions_pre_tanh)
+
+        target_q_values = torch.min(
+            self._target_qf1(next_obs, new_next_actions),
+            self._target_qf2(
+                next_obs, new_next_actions)).flatten() - (alpha * new_log_pi)
+        with torch.no_grad():
+            q_target = rewards * self._reward_scale + (
+                1. - terminals) * self._discount * target_q_values
+
+        # #consider cost-to-go from koopman optimal control
+        # # A = Q - V --> Q + cost-to-go
+        # # Q_pred + cost-to-go(obs) vs Q_target + \gamma * cost-to-go(next_obs)
+        # # question: should we also optimize koopman parameters during critic optimization
+        # # if not, this could serve as a bias and have less impact on the original SAC
+        # # a quick test show actually this also impact stability, so maybe we should optimize this as well in the policy optimization?
+        # # if yes, maybe more efficient but less stability because it parameterizes policy as well
+        # #           and it has to be optimized for both qf1 and qf2?
+        # cost_to_go = self.policy._kpm_ctrl.forward_cost_to_go(obs)
+        # cost_to_go_new = self.policy._kpm_ctrl.forward_cost_to_go(next_obs)
+
+        # #detach to not optimize for now
+        # cost_to_go_err = (cost_to_go - (1. - terminals) * self._discount * cost_to_go_new)
+        # # q_target = q_target - cost_to_go_err
+
+        # #value iteration loss
+        # vi_loss = F.mse_loss(cost_to_go_err, rewards)
+
+        #value iteration loss does not make sense here because it should be on policy?
+        #a better way might be bellman residual?
+        vi_loss = None
+
+        qf1_loss = F.mse_loss(q1_pred.flatten(), q_target)
+        qf2_loss = F.mse_loss(q2_pred.flatten(), q_target)
+
+        return qf1_loss, qf2_loss, vi_loss
 
     def _koopman_fit_objective(self, samples_data):
         obs = samples_data['observation']
@@ -213,7 +284,7 @@ class KoopmanLQRSAC(SAC):
             self.optimize_koopman_aux()
 
         obs = samples_data['observation']
-        qf1_loss, qf2_loss = self._critic_objective(samples_data)
+        qf1_loss, qf2_loss, vi_loss = self._critic_objective(samples_data)
 
         self._qf1_optimizer.zero_grad()
         qf1_loss.backward()
@@ -229,8 +300,7 @@ class KoopmanLQRSAC(SAC):
         log_pi_new_actions = action_dists.log_prob(
             value=new_actions, pre_tanh_value=new_actions_pre_tanh)
 
-        policy_loss = self._actor_objective(samples_data, new_actions,
-                                            log_pi_new_actions)
+        policy_loss = self._actor_objective(samples_data, new_actions, log_pi_new_actions) #+ vi_loss
         
         if self._koopman_param._koopman_fit_coeff > 0 and self._koopman_aux_optimizer is None:
             koopman_fit_err = self._koopman_fit_objective(samples_data)
@@ -243,6 +313,7 @@ class KoopmanLQRSAC(SAC):
             if self._koopman_param._koopman_recons_coeff > 0:
                 koopman_recons_err = self._koopman_recons_objective(samples_data)
                 tol_loss = tol_loss + self._koopman_param._koopman_recons_coeff * koopman_recons_err
+            
         else:
             tol_loss = policy_loss
 
