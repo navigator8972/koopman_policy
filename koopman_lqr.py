@@ -299,7 +299,7 @@ class KoopmanLQR(nn.Module):
             else:
                 g_goal = self._g_goal
 
-            cost = torch.sum((kpm._phi(x)-g_goal)**2 * self._q_diag_log.exp()[None, :], dim=1)
+            cost = torch.sum((self._phi(x)-g_goal)**2 * self._q_diag_log.exp()[None, :], dim=1)
 
             if u is not None:
                 cost = cost + torch.sum(u**2 * self._r_diag_log.exp()[None, :], dim=1)

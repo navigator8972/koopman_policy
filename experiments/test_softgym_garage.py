@@ -183,8 +183,8 @@ def main():
 
     args = parser.parse_args()
 
-    sac_softgym(seed=seed, policy_type='vanilla', args=args)
-    # sac_softgym(seed=seed, policy_type='koopman', args=args)
+    #sac_softgym(seed=seed, policy_type='vanilla', args=args)
+    sac_softgym(seed=seed, policy_type='koopman', args=args)
     # sac_softgym(seed=seed, policy_type='koopman_residual', args=args)
     return
 

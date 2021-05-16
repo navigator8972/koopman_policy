@@ -95,7 +95,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         
         policy = GaussianKoopmanLQRPolicy(
             env_spec=env.spec,
-            k=4,   #use the same size of koopmanv variable
+            k=16,   #use the same size of koopmanv variable
             T=policy_horizon,
             phi=[hidden_dim, hidden_dim],
             residual=residual,
