@@ -176,7 +176,7 @@ def main():
 
     # See what the trained policy can accomplish
     print('Starting to run a rollout...')
-    path = rollout(env, policy, max_episode_length=500, animated=True, video_name='test', pause_per_frame=0.01, deterministic=True, is_softgym=args.use_softgym)
+    path = rollout(env, policy, max_episode_length=500, animated=False, video_name='test', pause_per_frame=0.01, deterministic=True, is_softgym=args.use_softgym)
     
     return
 

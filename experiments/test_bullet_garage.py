@@ -36,12 +36,17 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     trainer = Trainer(snapshot_config=ctxt)
 
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
-    env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
-    # env = BulletEnv('ReacherBulletEnv-v0')
-    # env = normalize(BulletEnv('HalfCheetahBulletEnv-v0'))
+    # env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
+    # env = normalize(BulletEnv('ReacherBulletEnv-v0'))
+    env = normalize(BulletEnv('HalfCheetahBulletEnv-v0'))
+    # env = normalize(BulletEnv('AntBulletEnv-v0'))
+    # env = normalize(BulletEnv('InvertedPendulumSwingupBulletEnv-v0'))
 
+    #need a separate seed for gym environment for full determinism
+    env.seed(seed)
+    env.action_space.seed(seed)
     #original hidden size 256
-    hidden_size = 32
+    hidden_size = 256
 
     qf1 = ContinuousMLPQFunction(env_spec=env.spec,
                                  hidden_sizes=[hidden_size, hidden_size],
@@ -111,7 +116,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
         koopman_param = KoopmanLQRRLParam(
             least_square_fit_coeff=-1,
-            koopman_fit_coeff=1,
+            koopman_fit_coeff=0.1,
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=1,
@@ -143,7 +148,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=50, batch_size=1000, plot=False)
+    trainer.train(n_epochs=300, batch_size=1000, plot=False)
     return
 
 
@@ -153,11 +158,15 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     trainer = Trainer(snapshot_config=ctxt)
 
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
-    env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
-    # env = BulletEnv('ReacherBulletEnv-v0')
+    # env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
+    # env = normalize(BulletEnv('ReacherBulletEnv-v0'))
+    env = normalize(BulletEnv('InvertedPendulumSwingupBulletEnv-v0'))
 
+    #need a separate seed for gym environment for full determinism
+    env.seed(seed)
+    env.action_space.seed(seed)
     #original hidden size 256
-    hidden_size = 32
+    hidden_size = 256
 
     if policy_type == 'vanilla':
         print('Using Vanilla NN Policy')
@@ -248,23 +257,24 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                )
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=50, batch_size=5000, plot=False)
+    trainer.train(n_epochs=100, batch_size=5000, plot=False)
     return
 
 seeds = [1, 21, 52, 251, 521]
-#seeds = [251, 521]
+# seeds = [251, 521]
 #[2, 12, 51, 125, 512]
+seeds = [21]
 for seed in seeds: 
-    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
-    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
-    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
-#      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
-#      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
-#      koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
+    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
+    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
+    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
+    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 #test the impact of time horizon
 #for seed in seeds:
-#    for h in [2, 5, 8, 12, 15]:
-        #koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
-        #koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
+    # for h in [2, 5, 8, 12, 15]:
+        # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
+        # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
 #koopmanlqr_ppo_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
 #koopmanlqr_sac_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)

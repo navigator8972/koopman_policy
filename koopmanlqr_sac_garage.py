@@ -68,6 +68,14 @@ class KoopmanLQRSAC(SAC):
             eval_env=eval_env,
             use_deterministic_evaluation=use_deterministic_evaluation
             )
+        #overload original policy optimizer if residual exists
+        if self.policy._residual is not None:
+            #apply weight decay to regularize residual part
+            self._policy_optimizer = self._optimizer(
+                [{'params': self.policy._kpm_ctrl.parameters()},
+                {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}],
+                lr=self._policy_lr)
+        
         self._koopman_param = koopman_param
 
         if self._koopman_param._least_square_fit_coeff > 0:
@@ -85,8 +93,13 @@ class KoopmanLQRSAC(SAC):
             #we may also let the policy optimizer learn everything but an initial test finds this might be a bad idea
             policy_param = self.policy.get_qr_params()
             if self.policy._residual is not None:
-                policy_param += list(self.policy._residual.parameters())
-            self._policy_optimizer = self._optimizer(policy_param, lr=policy_lr)
+                self._policy_optimizer = self._optimizer(
+                    [{'params': policy_param},
+                    {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}],
+                    lr=self._policy_lr)
+            else:
+                self._policy_optimizer = self._optimizer(policy_param, lr=policy_lr)
+                
             self._koopman_aux_optimizer = self._optimizer(self.policy.get_koopman_params(),
                                                     lr=self._koopman_param._koopman_fit_optim_lr)
             if self._koopman_param._least_square_fit_coeff < 0:
