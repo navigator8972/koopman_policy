@@ -160,7 +160,9 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
     # env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
     # env = normalize(BulletEnv('ReacherBulletEnv-v0'))
-    env = normalize(BulletEnv('InvertedPendulumSwingupBulletEnv-v0'))
+    # env = normalize(BulletEnv('InvertedPendulumSwingupBulletEnv-v0'))
+    env = normalize(BulletEnv('Block2DBulletEnv-v0'))
+
 
     #need a separate seed for gym environment for full determinism
     env.seed(seed)
@@ -232,8 +234,8 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     
     sampler = LocalSampler(agents=policy,
                         envs=env,
-                        max_episode_length=500)
-                        #env.spec.max_episode_length)
+                        max_episode_length=env.spec.max_episode_length)
+
     if policy_type=='vanilla':
         algo = PPO(env_spec=env.spec,
                 policy=policy,
@@ -257,7 +259,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                )
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=5000, plot=False)
+    trainer.train(n_epochs=100, batch_size=4000, plot=False)
     return
 
 seeds = [1, 21, 52, 251, 521]

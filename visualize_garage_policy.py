@@ -3,6 +3,8 @@ import time
 import torch
 import numpy as np
 
+import koopman_policy.envs
+
 #from garage import rollout
 from garage.experiment import Snapshotter
 from garage.np import discount_cumsum, stack_tensor_dict_list

@@ -1,8 +1,13 @@
 import os
 
 import numpy as np
-from gym import utils
-from gym.envs.mujoco import mujoco_env
+
+import gym.spaces
+
+import pybullet
+from pybullet_envs.env_bases import MJCFBaseBulletEnv
+from pybullet_envs.robot_bases import XmlBasedRobot
+from pybullet_envs.scene_abstract import SingleRobotEmptyScene
 
 ############final values for the block exp#############
 # GOAL = np.array([0, 0.5])
@@ -76,69 +81,10 @@ def cart_rwd_func_1(x, f, terminal=False):
 
     return reward, rewards
 
-class Block2DEnv(mujoco_env.MujocoEnv, utils.EzPickle):
-    def __init__(self):
-        utils.EzPickle.__init__(self)
-
-        self.t = 0
-
-        fullpath = os.path.join(os.path.dirname(__file__), "mujoco_assets", 'block2D.xml')
-        mujoco_env.MujocoEnv.__init__(self, fullpath, 1)
-        
-        self.reset_model()
-
-    def step(self, a):
-        self.do_simulation(a, self.frame_skip)
-        obs = self._get_obs()
-
-        reward, rewards = cart_rwd_func_1(obs, a)
-        done = False
-        self.t+=1
-        if self.t >= T:
-            reward, rewards = cart_rwd_func_1(obs, a, terminal=True) 
-            done = True
-       
-        return obs, reward, done, dict(reward_dist=np.sum(rewards[:2]), reward_ctrl=rewards[2])
-
-    def viewer_setup(self):
-        self.viewer.cam.trackbodyid = 0
-        # self.viewer.cam.trackbodyid = -1
-        # self.viewer.cam.distance = 4.0
-
-    def reset_model(self):
-        var = SIGMA ** 2
-        cov = np.diag(var * np.ones(2))
-        mu = INIT
-        init_qpos = np.random.multivariate_normal(mu, cov)
-        # init_qpos = INIT
-        init_qvel = np.zeros(2)
-        self.set_state(init_qpos, init_qvel)
-        self.t = 0
-        return self._get_obs()
-
-    def _get_obs(self):
-        ob=np.concatenate([
-            # self.model.data.qpos.flat[:7],
-            # self.model.data.qvel.flat[:7],
-            self.sim.data.qpos.flat[:2],
-            self.sim.data.qvel.flat[:2],
-            # self.get_body_com("blocky")[:2],
-        ])
-        ob[:2]-=GOAL
-        return ob 
-    
-    def close(self):
-        return True
-
-import pybullet
-from pybullet.envs.env_bases import MJCFBaseBulletEnv
-from pybullet.envs.robot_bases import  XmlBasedRobot
-from pybullet.envs.scene_abstract import SingleRobotEmptyScene
-
 class Block2DRobot(XmlBasedRobot):
     def __init__(self):
         XmlBasedRobot.__init__(self, robot_name='blockx', action_dim=2, obs_dim=4, self_collision=True)
-        self.model_xml = os.path.join(os.path.dirname(__file__), "mujoco_assets", 'block2D.xml')
+        self.model_xml = os.path.join(os.path.dirname(__file__), "mujoco_assets", 'block2DForBullet.xml')
         self.doneLoading = 0
     
     def reset(self, bullet_client):
@@ -177,7 +123,7 @@ class Block2DRobot(XmlBasedRobot):
             init_qpos[0], init_qvel[0])
         self.jdict["slidey"].reset_current_position(
             init_qpos[1], init_qvel[1])
-
+        
 
     def apply_action(self, a):
         assert (np.isfinite(a).all())
@@ -190,16 +136,20 @@ class Block2DRobot(XmlBasedRobot):
         ob=np.array([x_pos, y_pos, x_dot, y_dot])
         ob[:2]-=GOAL
         return ob 
+    
+    def calc_potential(self):
+        #dummy function for pybullet_envs
+        return 0
 
 
-class Block2DBulletEnv(MJCFBaseBulletEnv, utils.EzPickle):
-    def __init__(self):
-        utils.EzPickle.__init__(self)
-
+class Block2DBulletEnv(MJCFBaseBulletEnv):
+    def __init__(self, render=False):
         self.t = 0
 
         self.robot = Block2DRobot()
-        self.reset_model()
+        # self.reset_model()
+        MJCFBaseBulletEnv.__init__(self, self.robot, render)
+        self.stateId = -1
 
     def create_single_player_scene(self, bullet_client):
         return SingleRobotEmptyScene(bullet_client, gravity=0.0, timestep=0.0165, frame_skip=1)
@@ -207,6 +157,8 @@ class Block2DBulletEnv(MJCFBaseBulletEnv, utils.EzPickle):
     def step(self, a):
         assert (not self.scene.multiplayer)
         self.robot.apply_action(a)
+        self.scene.global_step()
+
         obs = self._get_obs()
         
         reward, rewards = cart_rwd_func_1(obs, a)
@@ -218,17 +170,28 @@ class Block2DBulletEnv(MJCFBaseBulletEnv, utils.EzPickle):
        
         return obs, reward, done, dict(reward_dist=np.sum(rewards[:2]), reward_ctrl=rewards[2])
 
-    def viewer_setup(self):
-        self.viewer.cam.trackbodyid = 0
-        # self.viewer.cam.trackbodyid = -1
-        # self.viewer.cam.distance = 4.0
-
-    def reset_model(self):
+    def reset(self):
         self.t = 0
-        return self.robot.reset()
+        if (self.stateId >= 0):
+            self._p.restoreState(self.stateId)
+        r = MJCFBaseBulletEnv.reset(self)
+        if (self.stateId < 0):
+            self.stateId = self._p.saveState()
+        return r
+        
 
     def _get_obs(self):
         return self.robot.calc_state()
     
-    def close(self):
-        return True
+
+if __name__ == '__main__':
+    "a test"
+    import time
+    dt = 1./240.
+    env = Block2DBulletEnv(render=True)
+
+    while True:
+        env.reset()
+        for i in range(200):
+            env.step(env.action_space.sample())
+            time.sleep(dt)
