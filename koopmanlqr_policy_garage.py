@@ -53,10 +53,10 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
         if isinstance(use_state_goal, bool):
             if use_state_goal:
                 self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
-                                x_goal=torch.zeros(self._obs_dim), T=T, phi=phi, u_affine=None, g_goal=None) #set x_goal separately if we know the goal
+                                x_goal=torch.randn(self._obs_dim), T=T, phi=phi, u_affine=None, g_goal=None) #set x_goal separately if we know the goal
             else:
                 self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
-                                x_goal=None, T=T, phi=phi, u_affine=None, g_goal=torch.zeros(k)) #set x_goal separately if we know the goal
+                                x_goal=None, T=T, phi=phi, u_affine=None, g_goal=torch.randn(k)) #set x_goal separately if we know the goal
         else:
             #regularization for a known goal
             self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 

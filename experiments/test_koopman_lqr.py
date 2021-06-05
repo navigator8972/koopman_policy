@@ -212,7 +212,7 @@ def test_cost_to_go():
 
 
 if __name__ == "__main__":
-    #test_solve_lqr()
+    test_solve_lqr()
     #test_koopman_fit()
     # test_mpc()    
-    test_cost_to_go()
+    #test_cost_to_go()

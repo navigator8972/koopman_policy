@@ -101,22 +101,28 @@ class KoopmanLQR(nn.Module):
         v[-1] = batch_mv(Q, goals[:, -1, :])
         for i in reversed(range(T)):
             # (B^T V B + R)^{-1}
-            V_uu_inv = torch.inverse(
-                torch.matmul(
-                torch.matmul(B_trans, V[i+1]),
+            # V_uu_inv = torch.inverse(
+            #     torch.matmul(
+            #     torch.matmul(B_trans, V[i+1]),
+            #     B
+            #     ) + R
+            # ) 
+            # (B^T V B + R)^{-1} B^T
+            # using torch.solve(B, A) to obtain the solution of A X = B to avoid direct inverse, note it also returns LU
+            V_uu_inv_B_trans, _ = torch.solve(B_trans,
+                torch.matmul(torch.matmul(B_trans, V[i+1]),
                 B
-                ) + R
-            ) 
+                ) + R)
             # K = (B^T V B + R)^{-1} B^T V A 
             K[i] = torch.matmul(
                     torch.matmul(
-                        torch.matmul(V_uu_inv,  B_trans),
+                        V_uu_inv_B_trans,
                         V[i+1]
                     ),
                     A
                 )
 
-            k[i] = batch_mv(torch.matmul(V_uu_inv,  B.transpose(-2, -1)), v[i+1])
+            k[i] = batch_mv(V_uu_inv_B_trans, v[i+1])
 
             #Ricatti difference equation
             # A-BK
