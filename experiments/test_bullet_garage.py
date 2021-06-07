@@ -106,7 +106,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             residual=residual,
             normal_distribution_cls=TanhNormal,
             init_std=1.0,
-            use_state_goal=False,   #non regularization task, should be flexible?
+            use_state_goal='fixed_origin'
         )
 
         sampler = LocalSampler(agents=policy,
@@ -190,7 +190,6 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
     else:
         in_dim = env.spec.observation_space.flat_dim
-        hidden_dim = hidden_size
         out_dim = env.spec.action_space.flat_dim
 
         if policy_type == 'koopman':
@@ -198,7 +197,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             residual = None
         else:
             print('Using Koopman NN Policy')
-            residual = koopman_policy.koopman_lqr.FCNN(in_dim, out_dim, [hidden_dim, hidden_dim], hidden_nonlinearity=nn.ReLU)
+            residual = koopman_policy.koopman_lqr.FCNN(in_dim, out_dim, [hidden_size, hidden_size], hidden_nonlinearity=nn.ReLU)
           
 
         
@@ -206,10 +205,10 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             env_spec=env.spec,
             k=4,
             T=policy_horizon,
-            phi=[hidden_dim, hidden_dim],
+            phi=[hidden_size, hidden_size],
             residual=residual,
             init_std=1.0,
-            use_state_goal=False
+            use_state_goal='fixed_origin'
         )
 
         #fix the goal at origin
@@ -221,13 +220,13 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=-1,
-            koopman_fit_mat_reg_coeff=0.1,
+            koopman_fit_mat_reg_coeff=1e-3,
             koopman_recons_coeff=1
         )
 
     #shared settings    
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
-                                              hidden_sizes=(32, 32),
+                                              hidden_sizes=(hidden_size, hidden_size),
                                               hidden_nonlinearity=torch.tanh,
                                               output_nonlinearity=None)
 

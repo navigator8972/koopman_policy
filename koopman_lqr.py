@@ -27,10 +27,13 @@ class KoopmanLQR(nn.Module):
         self._x_dim = x_dim
         self._u_dim = u_dim
         if g_goal is None:
-            if isinstance(x_goal, nn.Module):
-                raise NotImplementedError
+            if x_goal is not None:
+                if isinstance(x_goal, nn.Module):
+                    raise NotImplementedError
+                else:
+                    self._x_goal = nn.Parameter(x_goal)
             else:
-                self._x_goal = nn.Parameter(x_goal)
+                self._x_goal = x_goal
             self._g_goal = g_goal
         else:
             self._x_goal = None
@@ -86,7 +89,7 @@ class KoopmanLQR(nn.Module):
         # return feedback gain and feedforward terms such that u = -K x + k
 
         # goals include the terminal reference
-        T = goals.shape[1]-1
+        T = self._T
 
         K = [None] * T
         k = [None] * T
@@ -98,39 +101,63 @@ class KoopmanLQR(nn.Module):
         B_trans = B.transpose(-2,-1)
         #initialization for backpropagation
         V[-1] = Q
-        v[-1] = batch_mv(Q, goals[:, -1, :])
-        for i in reversed(range(T)):
-            # (B^T V B + R)^{-1}
-            # V_uu_inv = torch.inverse(
-            #     torch.matmul(
-            #     torch.matmul(B_trans, V[i+1]),
-            #     B
-            #     ) + R
-            # ) 
-            # (B^T V B + R)^{-1} B^T
-            # using torch.solve(B, A) to obtain the solution of A X = B to avoid direct inverse, note it also returns LU
-            V_uu_inv_B_trans, _ = torch.solve(B_trans,
-                torch.matmul(torch.matmul(B_trans, V[i+1]),
-                B
-                ) + R)
-            # K = (B^T V B + R)^{-1} B^T V A 
-            K[i] = torch.matmul(
-                    torch.matmul(
-                        V_uu_inv_B_trans,
-                        V[i+1]
-                    ),
-                    A
-                )
+        if goals is not None:
+            v[-1] = batch_mv(Q, goals[:, -1, :])
+            for i in reversed(range(T)):
+                # (B^T V B + R)^{-1}
+                # V_uu_inv = torch.inverse(
+                #     torch.matmul(
+                #     torch.matmul(B_trans, V[i+1]),
+                #     B
+                #     ) + R
+                # ) 
+                # (B^T V B + R)^{-1} B^T
+                # using torch.solve(B, A) to obtain the solution of A X = B to avoid direct inverse, note it also returns LU
+                V_uu_inv_B_trans, _ = torch.solve(B_trans,
+                    torch.matmul(torch.matmul(B_trans, V[i+1]),
+                    B
+                    ) + R)
+                # K = (B^T V B + R)^{-1} B^T V A 
+                K[i] = torch.matmul(
+                        torch.matmul(
+                            V_uu_inv_B_trans,
+                            V[i+1]
+                        ),
+                        A
+                    )
 
-            k[i] = batch_mv(V_uu_inv_B_trans, v[i+1])
+                k[i] = batch_mv(V_uu_inv_B_trans, v[i+1])
 
-            #Ricatti difference equation
-            # A-BK
-            A_BK = A - torch.matmul(B, K[i])
-            # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
-            V[i] = torch.matmul(torch.matmul(A_trans, V[i+1]), A_BK) + Q
-            # v = (A-BK)^Tv + Q r
-            v[i] = batch_mv(A_BK.transpose(-2, -1), v[i+1]) + batch_mv(Q, goals[:, i, :])   
+                #Ricatti difference equation
+                # A-BK
+                A_BK = A - torch.matmul(B, K[i])
+                # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
+                V[i] = torch.matmul(torch.matmul(A_trans, V[i+1]), A_BK) + Q
+                # v = (A-BK)^Tv + Q r
+                v[i] = batch_mv(A_BK.transpose(-2, -1), v[i+1]) + batch_mv(Q, goals[:, i, :])
+        else:
+            #None goals means a fixed regulation point at origin. ignore k and v for efficiency
+            for i in reversed(range(T)):
+                # using torch.solve(B, A) to obtain the solution of A X = B to avoid direct inverse, note it also returns LU
+                V_uu_inv_B_trans, _ = torch.solve(B_trans,
+                    torch.matmul(torch.matmul(B_trans, V[i+1]),
+                    B
+                    ) + R)
+                # K = (B^T V B + R)^{-1} B^T V A 
+                K[i] = torch.matmul(
+                        torch.matmul(
+                            V_uu_inv_B_trans,
+                            V[i+1]
+                        ),
+                        A
+                    )
+                #Ricatti difference equation
+                # A-BK
+                A_BK = A - torch.matmul(B, K[i])
+                # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
+                V[i] = torch.matmul(torch.matmul(A_trans, V[i+1]), A_BK) + Q
+            k[:] = torch.zeros((1, self._u_dim))
+            v[:] = torch.zeros((1, self._k))       
 
         # we might need to cat or stack to return them as tensors but for mpc maybe only the first time step is useful...
         # note K is for negative feedback, namely u = -Kx+k
@@ -282,8 +309,10 @@ class KoopmanLQR(nn.Module):
             goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
         else:
             #use g_goal instead
-            assert(self._g_goal is not None)
-            goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+            if self._g_goal is not None:
+                goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+            else:
+                goals = None
             
         K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
         #apply the first control as mpc

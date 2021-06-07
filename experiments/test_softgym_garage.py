@@ -123,7 +123,7 @@ def sac_softgym(ctxt=None, seed=1, policy_type='koopman', policy_horizon=5, args
             residual=residual,
             normal_distribution_cls=TanhNormal,
             init_std=1.0,
-            use_state_goal=False,   #non regularization task, should be flexible?
+            use_state_goal='fixed_origin',   #non regularization task, should be flexible?
         )
 
         sampler = LocalSampler(agents=policy,

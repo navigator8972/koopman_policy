@@ -30,8 +30,10 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
         to be constructed and returned by a call to forward. By default, is
         `torch.distributions.Normal`.
         init_std (number): initial standard deviation parameter
-        use_state_goal (bool/Tensor): whether to learn a goal in the state space or not. If false the goal will be learned in the embedding space.
-                                      And if a Tensor is given, treat it as a regularization task with a known state goal. 
+        use_state_goal (str/Tensor): whether to learn a goal in the state space or not. 
+                                    'state'/'latent': the goal will be learned in the state/latent space.
+                                    otherwise, it will assume a fixed origin in the latent space
+                                    And if a Tensor is given, treat it as a regularization task with a known state goal. 
         name (str): Name of policy.
 
     """
@@ -43,20 +45,23 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
                 residual=None,
                 normal_distribution_cls=Normal,
                 init_std=1.0,
-                use_state_goal=False,
+                use_state_goal='fixed_origin',
                 name='GaussianKoopmanLQRPolicy'):
         super().__init__(env_spec, name)
         self._obs_dim = env_spec.observation_space.flat_dim
         self._action_dim = env_spec.action_space.flat_dim
 
         self._use_state_goal = use_state_goal
-        if isinstance(use_state_goal, bool):
-            if use_state_goal:
-                self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
-                                x_goal=torch.randn(self._obs_dim), T=T, phi=phi, u_affine=None, g_goal=None) #set x_goal separately if we know the goal
+        if isinstance(use_state_goal, str):
+            x_goal, g_goal = None, None
+            if use_state_goal == 'state':
+                x_goal=torch.zeros(self._obs_dim) #set x_goal separately if we know the goal
+            elif use_state_goal == 'latent':
+                g_goal=torch.zeros(k) #set x_goal separately if we know the goal
             else:
-                self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
-                                x_goal=None, T=T, phi=phi, u_affine=None, g_goal=torch.randn(k)) #set x_goal separately if we know the goal
+                pass #no goal is specified, assume a fixed origin in the latent space
+            self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
+                                x_goal=x_goal, T=T, phi=phi, u_affine=None, g_goal=g_goal) 
         else:
             #regularization for a known goal
             self._kpm_ctrl = kpm.KoopmanLQR(k=k, x_dim=self._obs_dim, u_dim=self._action_dim, 
@@ -144,7 +149,7 @@ class KoopmanLQRRLParam():
             #otherwise, can also use a separate optimizer for alternating gradient descent, this will overlap the above settings
             koopman_fit_optim_lr=-1,        #learning rate for the koopman fit optimizer
             koopman_fit_n_itrs=1,           #number of iterations for a separate
-            koopman_fit_mat_reg_coeff=10,    #coefficient to penalize the norm of A and B
+            koopman_fit_mat_reg_coeff=0.1,    #coefficient to penalize the norm of A and B
             #weight to account for reconstruction error from koopman observables, -1 means to ignore the term
             #shall we also have a separate optimizer for reconstruction? now lets stick to the same one with a different weight if this is needed
             koopman_recons_coeff=-1,     
