@@ -121,7 +121,8 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=1,
             koopman_fit_mat_reg_coeff=0.1,
-            koopman_recons_coeff=1
+            koopman_recons_coeff=1,
+            koopman_nonnn_lr=1e-2
         )
 
         sac = KoopmanLQRSAC(env_spec=env.spec,
@@ -221,7 +222,8 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=-1,
             koopman_fit_mat_reg_coeff=1e-3,
-            koopman_recons_coeff=1
+            koopman_recons_coeff=1,
+            koopman_nonnn_lr=1e-2
         )
 
     #shared settings    
@@ -258,7 +260,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                )
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=5000, plot=False)
+    trainer.train(n_epochs=10, batch_size=5000, plot=False)
     return
 
 # seeds = [1, 21, 52, 251, 521]
@@ -267,11 +269,11 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 seeds = [21]
 for seed in seeds: 
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
-    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
-    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
-    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
+    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 #test the impact of time horizon
 #for seed in seeds:
     # for h in [2, 5, 8, 12, 15]:

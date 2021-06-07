@@ -8,9 +8,7 @@ import torch.nn as nn
 from dowel import tabular
 
 from garage.torch.algos import PPO
-from garage import log_performance, obtain_evaluation_episodes, StepType
-
-from garage.torch import np_to_torch, torch_to_np, dict_np_to_torch
+from garage.torch.optimizers import OptimizerWrapper
 
 from koopman_policy.koopmanlqr_policy_garage import KoopmanLQRRLParam
 
@@ -35,6 +33,7 @@ class KoopmanLQRPPO(PPO):
                 #extra parameter for koopman
                 koopman_param=KoopmanLQRRLParam(),
                 ):
+
         super().__init__(env_spec,
                 policy,
                 value_function,
@@ -53,6 +52,26 @@ class KoopmanLQRPPO(PPO):
                 entropy_method)
 
         self._koopman_param = koopman_param
+        self._policy_lr = 2.5e-4   #default of garage PPO
+        nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr is not None else self._policy_lr
+        #overload original policy optimizer if residual exists
+        if self.policy._residual is not None:
+            #apply weight decay to regularize residual part
+            policy_optim_params = [
+                {'params': self.policy.get_koopman_params()},
+                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr},
+                {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}]
+        else:
+            policy_optim_params = [
+                {'params': self.policy.get_koopman_params()},
+                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr}]
+        
+        if policy_optimizer is None:
+            policy_optimizer = torch.optim.Adam
+            #note by default PPO/VPG will use a wrapper to construct the optimizer. we need to update the nested one
+            self._policy_optimizer._optimizer = policy_optimizer(policy_optim_params, lr=self._policy_lr)
+        else:
+            self._policy_optimizer = policy_optimizer(policy_optim_params, lr=self._policy_lr)
         return
     
     def _koopman_fit_objective(self, samples_data):
@@ -104,7 +123,7 @@ class KoopmanLQRPPO(PPO):
                 if self._koopman_param._koopman_recons_coeff > 0:
                     tabular.record('Koopman Recons Error', koopman_recons_err.item())
         else:
-            tol_obj = tol_obj
+            tol_obj = ppo_obj
 
 
         return tol_obj

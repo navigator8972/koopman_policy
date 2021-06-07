@@ -126,7 +126,13 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
         return
     
     def get_koopman_params(self):
-        return self._kpm_ctrl._phi.parameters()
+        param = list(self._kpm_ctrl._phi.parameters())
+        if self._kpm_ctrl._phi_inv is not None:
+            param+=list(self._kpm_ctrl._phi_inv.parameters())
+        return param
+    
+    def get_lindyn_params(self):
+        return [self._kpm_ctrl._phi_affine, self._kpm_ctrl._u_affine]
     
     def get_qr_params(self):
         param = [self._kpm_ctrl._q_diag_log, self._kpm_ctrl._r_diag_log]
@@ -140,6 +146,8 @@ class GaussianKoopmanLQRPolicy(StochasticPolicy):
 class KoopmanLQRRLParam():
     def __init__(
             self,
+            #a separate learning rate for non NN parameters, maybe we need a different learning rate for them?
+            koopman_nonnn_lr=None,  
             #regularization term for least square if >0. -1 for not using least square to fit koopman
             least_square_fit_coeff=-1, 
             #weight to account for koopman fit error, -1 means not to account it
@@ -149,11 +157,12 @@ class KoopmanLQRRLParam():
             #otherwise, can also use a separate optimizer for alternating gradient descent, this will overlap the above settings
             koopman_fit_optim_lr=-1,        #learning rate for the koopman fit optimizer
             koopman_fit_n_itrs=1,           #number of iterations for a separate
-            koopman_fit_mat_reg_coeff=0.1,    #coefficient to penalize the norm of A and B
+            koopman_fit_mat_reg_coeff=1e-3,    #coefficient to penalize the norm of A and B
             #weight to account for reconstruction error from koopman observables, -1 means to ignore the term
             #shall we also have a separate optimizer for reconstruction? now lets stick to the same one with a different weight if this is needed
-            koopman_recons_coeff=-1,     
+            koopman_recons_coeff=-1,
             ):
+        self._koopman_nonnn_lr = koopman_nonnn_lr
         self._least_square_fit_coeff = least_square_fit_coeff
         self._koopman_fit_coeff = koopman_fit_coeff
         self._koopman_fit_coeff_errbound = koopman_fit_coeff_errbound

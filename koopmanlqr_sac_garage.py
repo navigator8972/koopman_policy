@@ -69,11 +69,18 @@ class KoopmanLQRSAC(SAC):
             use_deterministic_evaluation=use_deterministic_evaluation
             )
         #overload original policy optimizer if residual exists
+        nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr is not None else policy_lr
         if self.policy._residual is not None:
             #apply weight decay to regularize residual part
             self._policy_optimizer = self._optimizer(
-                [{'params': self.policy._kpm_ctrl.parameters()},
+                [{'params': self.policy.get_koopman_params()},
+                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr},
                 {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}],
+                lr=self._policy_lr)
+        else:
+            self._policy_optimizer = self._optimizer(
+                [{'params': self.policy.get_koopman_params()},
+                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr}],
                 lr=self._policy_lr)
         
         self._koopman_param = koopman_param

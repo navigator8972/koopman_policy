@@ -65,7 +65,6 @@ class KoopmanLQR(nn.Module):
         #self._phi_affine = nn.Linear(k, k, bias=False)
         self._phi_affine = nn.Parameter(torch.randn((k, k)))
 
-
         if u_affine is None:
             #self._u_affine = nn.Linear(u_dim, k, bias=False)
             self._u_affine = nn.Parameter(torch.randn((k, u_dim)))
@@ -78,9 +77,13 @@ class KoopmanLQR(nn.Module):
         #gain of control penalty, in theory need to be parameterized...
         self._r_diag_log = nn.Parameter(torch.zeros(u_dim))
         self._r_diag_log.requires_grad = False
+
+        #zero tensor constant for k and v in the case of fixed origin
+        #these will be automatically moved to gpu so no need to create and check in the forward process
+        self.register_buffer('_zero_tensor_constant_k', torch.zeros((1, self._u_dim)))
+        self.register_buffer('_zero_tensor_constant_v', torch.zeros((1, self._k)))
         return
     
-   
     def _solve_lqr(self, A, B, Q, R, goals):
         # a differentiable process of solving LQR, 
         # time-invariant A, B, Q, R (with leading batch dimensions) but goals can be a batch of trajectories (batch_size, T+1, k)
@@ -156,8 +159,8 @@ class KoopmanLQR(nn.Module):
                 A_BK = A - torch.matmul(B, K[i])
                 # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
                 V[i] = torch.matmul(torch.matmul(A_trans, V[i+1]), A_BK) + Q
-            k[:] = torch.zeros((1, self._u_dim))
-            v[:] = torch.zeros((1, self._k))       
+            k[:] = self._zero_tensor_constant_k
+            v[:] = self._zero_tensor_constant_v       
 
         # we might need to cat or stack to return them as tensors but for mpc maybe only the first time step is useful...
         # note K is for negative feedback, namely u = -Kx+k

@@ -148,7 +148,7 @@ class Block2DBulletEnv(MJCFBaseBulletEnv):
 
         self.robot = Block2DRobot()
         # self.reset_model()
-        MJCFBaseBulletEnv.__init__(self, self.robot, render)
+        super().__init__(self, self.robot, render)
         self.stateId = -1
 
     def create_single_player_scene(self, bullet_client):
