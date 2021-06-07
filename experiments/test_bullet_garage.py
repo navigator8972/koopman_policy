@@ -258,6 +258,11 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                #use extra koopman_param, could be dummy for vanilla PPO and policy
                koopman_param=koopman_param
                )
+    if torch.cuda.is_available():
+        set_gpu_mode(True)
+    else:
+        set_gpu_mode(False)
+    algo.to()
 
     trainer.setup(algo, env)
     trainer.train(n_epochs=10, batch_size=5000, plot=False)
