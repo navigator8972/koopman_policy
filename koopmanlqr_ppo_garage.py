@@ -8,7 +8,7 @@ import torch.nn as nn
 from dowel import tabular
 
 from garage.torch.algos import PPO
-from garage.torch.optimizers import OptimizerWrapper
+from garage.torch import global_device
 
 from koopman_policy.koopmanlqr_policy_garage import KoopmanLQRRLParam
 
@@ -127,3 +127,24 @@ class KoopmanLQRPPO(PPO):
 
 
         return tol_obj
+
+    @property
+    def networks(self):
+        """Return all the networks within the model.
+        Returns:
+            list: A list of networks.
+        """
+        return [
+            self.policy, self._value_function
+        ]
+
+    def to(self, device=None):
+        """Put all the networks within the model on device.
+        Args:
+            device (str): ID of GPU or CPU.
+        """
+        if device is None:
+            device = global_device()
+        for net in self.networks:
+            net.to(device)
+

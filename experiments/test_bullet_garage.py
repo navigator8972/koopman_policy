@@ -100,7 +100,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         
         policy = GaussianKoopmanLQRPolicy(
             env_spec=env.spec,
-            k=16,   #use the same size of koopmanv variable
+            k=4,   #use the same size of koopmanv variable
             T=policy_horizon,
             phi=[hidden_dim, hidden_dim],
             residual=residual,
@@ -116,11 +116,11 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
         koopman_param = KoopmanLQRRLParam(
             least_square_fit_coeff=-1,
-            koopman_fit_coeff=0.1,
+            koopman_fit_coeff=1,
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=1,
-            koopman_fit_mat_reg_coeff=0.1,
+            koopman_fit_mat_reg_coeff=1e-3,
             koopman_recons_coeff=1,
             koopman_nonnn_lr=1e-2
         )
@@ -258,14 +258,14 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                #use extra koopman_param, could be dummy for vanilla PPO and policy
                koopman_param=koopman_param
                )
-    if torch.cuda.is_available():
-        set_gpu_mode(True)
-    else:
-        set_gpu_mode(False)
-    algo.to()
+    # if torch.cuda.is_available():
+    #     set_gpu_mode(True)
+    # else:
+    #     set_gpu_mode(False)
+    # algo.to()
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=10, batch_size=5000, plot=False)
+    trainer.train(n_epochs=100, batch_size=5000, plot=False)
     return
 
 # seeds = [1, 21, 52, 251, 521]
@@ -275,7 +275,7 @@ seeds = [21]
 for seed in seeds: 
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
     koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
-    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)

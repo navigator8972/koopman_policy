@@ -6,7 +6,6 @@ from torch.distributions.independent import Independent
 from garage.torch.distributions import TanhNormal
 
 from garage.torch.policies.stochastic_policy import StochasticPolicy
-from garage.torch.policies.policy import Policy
 
 from garage.torch import global_device
 
