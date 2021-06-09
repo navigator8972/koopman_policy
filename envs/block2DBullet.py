@@ -2,8 +2,6 @@ import os
 
 import numpy as np
 
-import gym.spaces
-
 import pybullet
 from pybullet_envs.env_bases import MJCFBaseBulletEnv
 from pybullet_envs.robot_bases import XmlBasedRobot
@@ -148,7 +146,7 @@ class Block2DBulletEnv(MJCFBaseBulletEnv):
 
         self.robot = Block2DRobot()
         # self.reset_model()
-        super().__init__(self, self.robot, render)
+        super().__init__(self.robot, render)
         self.stateId = -1
 
     def create_single_player_scene(self, bullet_client):

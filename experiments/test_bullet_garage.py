@@ -106,7 +106,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             residual=residual,
             normal_distribution_cls=TanhNormal,
             init_std=1.0,
-            use_state_goal='fixed_origin'
+            use_state_goal='latent'
         )
 
         sampler = LocalSampler(agents=policy,
