@@ -75,11 +75,13 @@ class KoopmanLQRSAC(SAC):
             self._policy_optimizer = self._optimizer(
                 [{'params': self.policy.get_koopman_params()},
                 {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr},
+                {'params': self.policy._init_std},
                 {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}],
                 lr=self._policy_lr)
         else:
             self._policy_optimizer = self._optimizer(
                 [{'params': self.policy.get_koopman_params()},
+                {'params': self.policy._init_std},
                 {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr}],
                 lr=self._policy_lr)
         

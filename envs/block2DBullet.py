@@ -2,6 +2,8 @@ import os
 
 import numpy as np
 
+import gym.spaces
+
 import pybullet
 from pybullet_envs.env_bases import MJCFBaseBulletEnv
 from pybullet_envs.robot_bases import XmlBasedRobot
@@ -82,6 +84,8 @@ def cart_rwd_func_1(x, f, terminal=False):
 class Block2DRobot(XmlBasedRobot):
     def __init__(self):
         XmlBasedRobot.__init__(self, robot_name='blockx', action_dim=2, obs_dim=4, self_collision=True)
+        #by default the observation/action spaces have no/one limits, joint limit should be able to handle them?
+        self.action_space = gym.spaces.Box(np.array([-10, -10]), np.array([10, 10]))
         self.model_xml = os.path.join(os.path.dirname(__file__), "mujoco_assets", 'block2DForBullet.xml')
         self.doneLoading = 0
     
@@ -111,10 +115,12 @@ class Block2DRobot(XmlBasedRobot):
         return s
 
     def robot_specific_reset(self, bullet_client):
-        var = SIGMA ** 2
-        cov = np.diag(var * np.ones(2))
-        mu = INIT
-        init_qpos = np.random.multivariate_normal(mu, cov)
+        # var = SIGMA ** 2
+        # cov = np.diag(var * np.ones(2))
+        # mu = INIT
+        # init_qpos = np.random.multivariate_normal(mu, cov)
+        # use uniform sampling to avoid reset to pos that is out of the space
+        init_qpos = INIT + (np.random.rand()*2-1)*SIGMA
         # init_qpos = INIT
         init_qvel = np.zeros(2)
         self.jdict["slidex"].reset_current_position(
@@ -186,10 +192,12 @@ if __name__ == '__main__':
     "a test"
     import time
     dt = 1./240.
-    env = Block2DBulletEnv(render=True)
+    env = Block2DBulletEnv(render=False)
 
     while True:
         env.reset()
+        # print(env.robot.observation_space.high, env.robot.observation_space.low)
+        # print(env.robot.jdict['slidex'].lowerLimit,env.robot.jdict['slidex'].upperLimit)
         for i in range(200):
             env.step(env.action_space.sample())
             time.sleep(dt)

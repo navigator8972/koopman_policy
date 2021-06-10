@@ -63,14 +63,19 @@ class KoopmanLQR(nn.Module):
         
         #prepare linear system params
         #self._phi_affine = nn.Linear(k, k, bias=False)
-        self._phi_affine = nn.Parameter(torch.randn((k, k)))
+        self._phi_affine = nn.Parameter(torch.empty((k, k)))
+        
 
         if u_affine is None:
             #self._u_affine = nn.Linear(u_dim, k, bias=False)
-            self._u_affine = nn.Parameter(torch.randn((k, u_dim)))
+            self._u_affine = nn.Parameter(torch.empty((k, u_dim)))
         else:
             self._u_affine = nn.Parameter(u_affine)
         
+        # try to avoid degenerated case, can it be fixed with initialization?
+        torch.nn.init.normal_(self._phi_affine, mean=0, std=1.0)
+        torch.nn.init.normal_(self._u_affine, mean=0, std=1.0)
+
         #parameters of quadratic functions
         self._q_diag_log = nn.Parameter(torch.zeros(k))  #to use: Q = diag(_q_diag_log.exp())
         # self._q_diag_log.requires_grad = False
@@ -120,6 +125,14 @@ class KoopmanLQR(nn.Module):
                     torch.matmul(torch.matmul(B_trans, V[i+1]),
                     B
                     ) + R)
+                # V_uu_inv_B_trans = torch.matmul(
+                #     torch.inverse(
+                #     torch.matmul(
+                #     torch.matmul(B_trans, V[i+1]),
+                #     B
+                #     ) + R
+                #     ), B_trans 
+                # )
                 # K = (B^T V B + R)^{-1} B^T V A 
                 K[i] = torch.matmul(
                         torch.matmul(
@@ -146,6 +159,14 @@ class KoopmanLQR(nn.Module):
                     torch.matmul(torch.matmul(B_trans, V[i+1]),
                     B
                     ) + R)
+                # V_uu_inv_B_trans = torch.matmul(
+                #     torch.inverse(
+                #     torch.matmul(
+                #     torch.matmul(B_trans, V[i+1]),
+                #     B
+                #     ) + R
+                #     ), B_trans 
+                # )
                 # K = (B^T V B + R)^{-1} B^T V A 
                 K[i] = torch.matmul(
                         torch.matmul(
