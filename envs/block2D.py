@@ -72,6 +72,7 @@ def cart_rwd_func_1(x, f, terminal=False):
     reward_state = reward_pos + reward_vel
     reward_action = -ACTION_SCALE*du
     reward = reward_state + reward_action
+    reward = reward 
     rewards = np.array([reward_pos, reward_vel, reward_action])
 
     return reward, rewards

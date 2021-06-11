@@ -271,7 +271,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 seeds = [1, 21, 52, 251, 521]
 # seeds = [251, 521]
 #[2, 12, 51, 125, 512]
-# seeds = [1]
+# seeds = [521]
 for seed in seeds: 
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
