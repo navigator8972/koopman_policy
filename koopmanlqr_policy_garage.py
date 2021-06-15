@@ -160,6 +160,7 @@ class KoopmanLQRRLParam():
             #weight to account for reconstruction error from koopman observables, -1 means to ignore the term
             #shall we also have a separate optimizer for reconstruction? now lets stick to the same one with a different weight if this is needed
             koopman_recons_coeff=-1,
+            koopman_target_update_tau_phi=-1,
             ):
         self._koopman_nonnn_lr = koopman_nonnn_lr
         self._least_square_fit_coeff = least_square_fit_coeff
@@ -169,4 +170,5 @@ class KoopmanLQRRLParam():
         self._koopman_fit_n_itrs = koopman_fit_n_itrs
         self._koopman_fit_mat_reg_coeff = koopman_fit_mat_reg_coeff
         self._koopman_recons_coeff = koopman_recons_coeff
+        self._koopman_target_update_tau_phi = koopman_target_update_tau_phi
         return

@@ -2,11 +2,12 @@
 Solving LQR for Koopman embedded dynamical systems. Keep everything differentiable.
 """
 import numpy as np
+import copy
 
 import torch
 from torch import nn, optim
 
-from koopman_policy.utils import FCNN, batch_mv
+from koopman_policy.utils import FCNN, batch_mv, soft_update_model
 
 class KoopmanLQR(nn.Module):
     def __init__(self, k, x_dim, u_dim, x_goal, T, phi=None, u_affine=None, g_goal=None):
@@ -60,6 +61,9 @@ class KoopmanLQR(nn.Module):
         else:
             self._phi = phi
             self._phi_inv = None # this, user must specify their own inverse network
+
+        #retain a target phi to emulate q function learning
+        self._target_phi = copy.deepcopy(self._phi)
         
         #prepare linear system params
         #self._phi_affine = nn.Linear(k, k, bias=False)
@@ -384,9 +388,13 @@ class KoopmanLQR(nn.Module):
         cost_to_go = 0.5 * (phi * batch_mv(V[0], phi)).sum(-1) - (phi * v[1]).sum(-1)
         return cost_to_go
     
-    def _koopman_fit_loss(self, x, x_next, u, ls_factor):
+    def _koopman_fit_loss(self, x, x_next, u, ls_factor, target_tau=-1):
         g = self._phi(x)
-        g_next = self._phi(x_next)
+
+        if target_tau > 0:
+            g_next = self._target_phi(x_next)
+        else:
+            g_next = self._phi(x_next)
 
         if ls_factor > 0:
             A, B, fit_err = self._solve_least_square(g.unsqueeze(0), g_next.unsqueeze(0), u.unsqueeze(0), I_factor=ls_factor)
@@ -412,3 +420,7 @@ class KoopmanLQR(nn.Module):
     def _koopman_matreg_loss(self):
         matreg_loss = torch.norm(self._phi_affine, p=2) + torch.norm(self._u_affine, p=2)
         return matreg_loss
+    
+    def _update_target_phi(self, tau):
+        soft_update_model(self._target_phi, self._phi, tau)
+        return

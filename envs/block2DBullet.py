@@ -33,11 +33,11 @@ INIT = np.array([-0.3, 0.8])+OFFSET+OFFSET_1
 # EXP_SCALE = 2.
 T = 200
 POS_SCALE = 1
-VEL_SCALE = 0.1
+VEL_SCALE = 0.0 #original 0.1
 ACTION_SCALE = 1e-3
 v = 2
 w = 1
-TERMINAL_STATE_SCALE = 10
+TERMINAL_STATE_SCALE = 10    #original 10
 
 SIGMA = np.array([0.05, 0.1]) # NFPPO
 

@@ -83,7 +83,9 @@ class KoopmanLQRPPO(PPO):
         # terminals = samples_data['terminal'].flatten()
         next_obs = samples_data['next_observation']
 
-        fit_err = self.policy._kpm_ctrl._koopman_fit_loss(obs, next_obs, acts, self._koopman_param._least_square_fit_coeff)
+        target_tau = self._koopman_param._koopman_target_update_tau_phi
+        fit_err = self.policy._kpm_ctrl._koopman_fit_loss(obs, next_obs, acts, 
+            self._koopman_param._least_square_fit_coeff, target_tau)
 
         return fit_err
     
@@ -130,6 +132,13 @@ class KoopmanLQRPPO(PPO):
 
         return tol_obj
 
+    def _train_once(self, itr, eps):
+        res = super()._train_once(itr, eps)
+        #update target phi
+        if self._koopman_param._koopman_target_update_tau_phi > 0:
+            self.policy._kpm_ctrl._update_target_phi(self._koopman_param._koopman_target_update_tau_phi)
+        return res
+    
     @property
     def networks(self):
         """Return all the networks within the model.

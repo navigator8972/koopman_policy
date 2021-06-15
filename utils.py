@@ -139,3 +139,22 @@ def tanh_inv(x, epsilon=1e-6):
 # print(net)
 # test_input = torch.randn((128, 4))
 # print(net(test_input))
+
+# soft update model from garage implementation
+# pylint: disable=missing-param-doc, missing-type-doc
+def soft_update_model(target_model, source_model, tau):
+    """Update model parameter of target and source model.
+    # noqa: D417
+    Args:
+        target_model
+                torch.nn.Module
+        source_model
+                torch.nn.Module
+                    Source network to update.
+        tau (float): Interpolation parameter for doing the
+            soft target update.
+    """
+    for target_param, param in zip(target_model.parameters(),
+                                   source_model.parameters()):
+        target_param.data.copy_(target_param.data * (1.0 - tau) +
+                                param.data * tau)

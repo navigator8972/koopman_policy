@@ -163,13 +163,14 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     # env = normalize(BulletEnv('ReacherBulletEnv-v0'))
     # env = normalize(BulletEnv('InvertedPendulumSwingupBulletEnv-v0'))
     env = normalize(BulletEnv('Block2DBulletEnv-v0'))
+    # env = BulletEnv('Block2DBulletEnv-v0')
 
 
     #need a separate seed for gym environment for full determinism
     env.seed(seed)
     env.action_space.seed(seed)
     #original hidden size 256
-    hidden_size = 256
+    hidden_size = 32
 
     if policy_type == 'vanilla':
         print('Using Vanilla NN Policy')
@@ -209,8 +210,10 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             phi=[hidden_size, hidden_size],
             residual=residual,
             init_std=1.0,
-            use_state_goal='latent'
+            use_state_goal='state'
         )
+
+        policy.set_state_goal_learnable(state_goal=None, learnable=False) #fixed origin goal
 
         #fix the goal at origin
         #policy.set_state_goal_learnable(state_goal=None, learnable=False)
@@ -226,9 +229,12 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_nonnn_lr=1e-2
         )
 
+        # koopman_param._koopman_recons_coeff = -1
+
     #shared settings    
+    #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
-                                              hidden_sizes=(hidden_size, hidden_size),
+                                              hidden_sizes=(32, 32),
                                               hidden_nonlinearity=torch.tanh,
                                               output_nonlinearity=None)
 
@@ -265,7 +271,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     # algo.to()
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=200, batch_size=3000, plot=False)
+    trainer.train(n_epochs=100, batch_size=6000, plot=False)
     return
 
 seeds = [1, 21, 52, 251, 521]
@@ -276,9 +282,9 @@ for seed in seeds:
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
-    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
+    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
     koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
-    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 #test the impact of time horizon
 #for seed in seeds:
     # for h in [2, 5, 8, 12, 15]:
