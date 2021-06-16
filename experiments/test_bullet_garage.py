@@ -38,9 +38,10 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     # env = gym.make('CartPoleBulletEnv-v1', renders=False)
     # env = normalize(BulletEnv('InvertedPendulumBulletEnv-v0'))
     # env = normalize(BulletEnv('ReacherBulletEnv-v0'))
-    env = normalize(BulletEnv('HalfCheetahBulletEnv-v0'))
-    # env = normalize(BulletEnv('AntBulletEnv-v0'))
+    # env = normalize(BulletEnv('HalfCheetahBulletEnv-v0'))
+    env = normalize(BulletEnv('AntBulletEnv-v0'))
     # env = normalize(BulletEnv('InvertedPendulumSwingupBulletEnv-v0'))
+    # env = normalize(BulletEnv('Block2DBulletEnv-v0'))
 
     #need a separate seed for gym environment for full determinism
     env.seed(seed)
@@ -163,7 +164,6 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     # env = normalize(BulletEnv('ReacherBulletEnv-v0'))
     # env = normalize(BulletEnv('InvertedPendulumSwingupBulletEnv-v0'))
     env = normalize(BulletEnv('Block2DBulletEnv-v0'))
-    # env = BulletEnv('Block2DBulletEnv-v0')
 
 
     #need a separate seed for gym environment for full determinism
@@ -210,10 +210,10 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             phi=[hidden_size, hidden_size],
             residual=residual,
             init_std=1.0,
-            use_state_goal='state'
+            use_state_goal='latent'
         )
 
-        policy.set_state_goal_learnable(state_goal=None, learnable=False) #fixed origin goal
+        # policy.set_state_goal_learnable(state_goal=None, learnable=False) #fixed origin goal
 
         #fix the goal at origin
         #policy.set_state_goal_learnable(state_goal=None, learnable=False)
@@ -235,7 +235,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                               hidden_sizes=(32, 32),
-                                              hidden_nonlinearity=torch.tanh,
+                                              hidden_nonlinearity=torch.relu,
                                               output_nonlinearity=None)
 
     
@@ -271,7 +271,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     # algo.to()
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=6000, plot=False)
+    trainer.train(n_epochs=50, batch_size=12000, plot=False)
     return
 
 seeds = [1, 21, 52, 251, 521]
@@ -279,11 +279,11 @@ seeds = [1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
 # seeds = [521]
 for seed in seeds: 
-    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
-    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
-    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
+    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
-    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
+    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 #test the impact of time horizon
 #for seed in seeds:

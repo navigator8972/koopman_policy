@@ -385,7 +385,7 @@ class KoopmanLQR(nn.Module):
         K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
 
         phi = self._phi(x0)
-        cost_to_go = 0.5 * (phi * batch_mv(V[0], phi)).sum(-1) - (phi * v[1]).sum(-1)
+        cost_to_go = (phi * batch_mv(V[0], phi)).sum(-1) - 2*(phi * v[0]).sum(-1)
         return cost_to_go
     
     def _koopman_fit_loss(self, x, x_next, u, ls_factor, target_tau=-1):
