@@ -69,7 +69,6 @@ class KoopmanLQR(nn.Module):
         #self._phi_affine = nn.Linear(k, k, bias=False)
         self._phi_affine = nn.Parameter(torch.empty((k, k)))
         
-
         if u_affine is None:
             #self._u_affine = nn.Linear(u_dim, k, bias=False)
             self._u_affine = nn.Parameter(torch.empty((k, u_dim)))
@@ -91,6 +90,10 @@ class KoopmanLQR(nn.Module):
         #these will be automatically moved to gpu so no need to create and check in the forward process
         self.register_buffer('_zero_tensor_constant_k', torch.zeros((1, self._u_dim)))
         self.register_buffer('_zero_tensor_constant_v', torch.zeros((1, self._k)))
+
+        #we may need to create a few cache for K, k, V and v because they are not dependent on x
+        #unless we make g_goal depend on it. This allows to avoid repeatively calculate ricatti recursion in eval mode
+        self._ricatti_solution_cache = None
         return
     
     def _solve_lqr(self, A, B, Q, R, goals):
@@ -203,8 +206,6 @@ class KoopmanLQR(nn.Module):
         fit koopman paramters, phi, A and B
         X, U:   trajectories of states and actions (batch_size, T, dim), self-supervision by ignoring the last action
         '''
-
-
         u_curr = U[:, :X.shape[1]-1, :]
 
         #choose to train NN feature or not. In the case of False, the embedding is basically a random projection
@@ -326,23 +327,35 @@ class KoopmanLQR(nn.Module):
         '''
         return torch.matmul(G, self._phi_affine.transpose(0, 1))+torch.matmul(U, self._u_affine.transpose(0, 1))
     
+    def _retrieve_ricatti_solution(self):
+        if self.training or self._ricatti_solution_cache is None:
+            Q = torch.diag(self._q_diag_log.exp()).unsqueeze(0)
+            R = torch.diag(self._r_diag_log.exp()).unsqueeze(0)
+            if self._x_goal is not None:
+                #this might have efficiency issue since the goal needs to be populated every call?
+                goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+            else:
+                #use g_goal instead
+                if self._g_goal is not None:
+                    goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
+                else:
+                    goals = None
+
+            K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
+            self._ricatti_solution_cache = (
+                [tmp.detach().clone() for tmp in K], 
+                [tmp.detach().clone()  for tmp in k], 
+                [tmp.detach().clone()  for tmp in V], 
+                [tmp.detach().clone()  for tmp in v])
+        else:
+            K, k, V, v = self._ricatti_solution_cache
+        return K, k, V, v
+
     def forward(self, x0):
         '''
         perform mpc with current parameters given the initial x0
         '''
-        Q = torch.diag(self._q_diag_log.exp()).unsqueeze(0)
-        R = torch.diag(self._r_diag_log.exp()).unsqueeze(0)
-        if self._x_goal is not None:
-            #this might have efficiency issue since the goal needs to be populated every call?
-            goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
-        else:
-            #use g_goal instead
-            if self._g_goal is not None:
-                goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
-            else:
-                goals = None
-            
-        K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
+        K, k, V, v = self._retrieve_ricatti_solution()
         #apply the first control as mpc
         # print(K[0].shape, k[0].shape)
         u = -batch_mv(K[0], self._phi(x0)) + k[0] 
@@ -372,17 +385,7 @@ class KoopmanLQR(nn.Module):
         #evaluate the cost-to-go of x up to a constant
         #x:         (B, d_x)
         #return:    (B,)
-        Q = torch.diag(self._q_diag_log.exp()).unsqueeze(0)
-        R = torch.diag(self._r_diag_log.exp()).unsqueeze(0)
-        if self._x_goal is not None:
-            #this might have efficiency issue since the goal needs to be populated every call?
-            goals = torch.repeat_interleave(self._phi(self._x_goal).unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
-        else:
-            #use g_goal instead
-            assert(self._g_goal is not None)
-            goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
-            
-        K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
+        K, k, V, v = self._retrieve_ricatti_solution()
 
         phi = self._phi(x0)
         cost_to_go = (phi * batch_mv(V[0], phi)).sum(-1) - 2*(phi * v[0]).sum(-1)

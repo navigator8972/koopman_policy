@@ -129,6 +129,7 @@ class KoopmanLQRSAC(SAC):
             float: The average return across self._num_evaluation_episodes
                 episodes
         """
+        self.policy._kpm_ctrl.training = False
         eval_episodes = obtain_evaluation_episodes(
             self.policy,
             self._eval_env,
@@ -301,6 +302,7 @@ class KoopmanLQRSAC(SAC):
             torch.Tensor: loss from 1st q-function after optimization.
             torch.Tensor: loss from 2nd q-function after optimization.
         """
+        self.policy._kpm_ctrl.training = True
         #standalone optimization loop for koopman aux
         if self._koopman_aux_optimizer is not None:
             self.optimize_koopman_aux()

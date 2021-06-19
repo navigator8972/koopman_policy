@@ -133,6 +133,7 @@ class KoopmanLQRPPO(PPO):
         return tol_obj
 
     def _train_once(self, itr, eps):
+        self.policy.train()
         res = super()._train_once(itr, eps)
         #update target phi
         if self._koopman_param._koopman_target_update_tau_phi > 0:

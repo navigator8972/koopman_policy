@@ -150,7 +150,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         set_gpu_mode(False)
     sac.to()
     trainer.setup(algo=sac, env=env)
-    trainer.train(n_epochs=300, batch_size=1000, plot=False)
+    trainer.train(n_epochs=100, batch_size=1000, plot=False)
     return
 
 
