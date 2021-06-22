@@ -92,8 +92,8 @@ class KoopmanLQR(nn.Module):
         self.register_buffer('_zero_tensor_constant_v', torch.zeros((1, self._k)))
 
         #we may need to create a few cache for K, k, V and v because they are not dependent on x
-        #unless we make g_goal depend on it. This allows to avoid repeatively calculate ricatti recursion in eval mode
-        self._ricatti_solution_cache = None
+        #unless we make g_goal depend on it. This allows to avoid repeatively calculate riccati recursion in eval mode
+        self._riccati_solution_cache = None
         return
     
     def _solve_lqr(self, A, B, Q, R, goals):
@@ -151,7 +151,7 @@ class KoopmanLQR(nn.Module):
 
                 k[i] = batch_mv(V_uu_inv_B_trans, v[i+1])
 
-                #Ricatti difference equation
+                #riccati difference equation
                 # A-BK
                 A_BK = A - torch.matmul(B, K[i])
                 # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
@@ -182,7 +182,7 @@ class KoopmanLQR(nn.Module):
                         ),
                         A
                     )
-                #Ricatti difference equation
+                #riccati difference equation
                 # A-BK
                 A_BK = A - torch.matmul(B, K[i])
                 # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
@@ -327,8 +327,8 @@ class KoopmanLQR(nn.Module):
         '''
         return torch.matmul(G, self._phi_affine.transpose(0, 1))+torch.matmul(U, self._u_affine.transpose(0, 1))
     
-    def _retrieve_ricatti_solution(self):
-        if self.training or self._ricatti_solution_cache is None:
+    def _retrieve_riccati_solution(self):
+        if self.training or self._riccati_solution_cache is None:
             Q = torch.diag(self._q_diag_log.exp()).unsqueeze(0)
             R = torch.diag(self._r_diag_log.exp()).unsqueeze(0)
             if self._x_goal is not None:
@@ -342,20 +342,20 @@ class KoopmanLQR(nn.Module):
                     goals = None
 
             K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
-            self._ricatti_solution_cache = (
+            self._riccati_solution_cache = (
                 [tmp.detach().clone() for tmp in K], 
                 [tmp.detach().clone()  for tmp in k], 
                 [tmp.detach().clone()  for tmp in V], 
                 [tmp.detach().clone()  for tmp in v])
         else:
-            K, k, V, v = self._ricatti_solution_cache
+            K, k, V, v = self._riccati_solution_cache
         return K, k, V, v
 
     def forward(self, x0):
         '''
         perform mpc with current parameters given the initial x0
         '''
-        K, k, V, v = self._retrieve_ricatti_solution()
+        K, k, V, v = self._retrieve_riccati_solution()
         #apply the first control as mpc
         # print(K[0].shape, k[0].shape)
         u = -batch_mv(K[0], self._phi(x0)) + k[0] 
@@ -385,7 +385,7 @@ class KoopmanLQR(nn.Module):
         #evaluate the cost-to-go of x up to a constant
         #x:         (B, d_x)
         #return:    (B,)
-        K, k, V, v = self._retrieve_ricatti_solution()
+        K, k, V, v = self._retrieve_riccati_solution()
 
         phi = self._phi(x0)
         cost_to_go = (phi * batch_mv(V[0], phi)).sum(-1) - 2*(phi * v[0]).sum(-1)
