@@ -7,7 +7,7 @@ import copy
 import torch
 from torch import nn, optim
 
-from koopman_policy.utils import FCNN, batch_mv, soft_update_model
+from koopman_policy.utils import FCNN, batch_mv, soft_update_model, batch_pinv
 
 class KoopmanLQR(nn.Module):
     def __init__(self, k, x_dim, u_dim, x_goal, T, phi=None, u_affine=None, g_goal=None):

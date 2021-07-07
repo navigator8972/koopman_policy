@@ -72,26 +72,23 @@ class KoopmanLQRSAC(SAC):
         nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr is not None else policy_lr
         if self.policy._residual is not None:
             #apply weight decay to regularize residual part
-            self._policy_optimizer = self._optimizer(
-                [{'params': self.policy.get_koopman_params()},
-                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr},
+            policy_optim_params = [{'params':self.policy.get_koopman_params()},
+                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr},
                 {'params': self.policy._init_std},
-                {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}],
-                lr=self._policy_lr)
+                {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}]
         else:
-            self._policy_optimizer = self._optimizer(
-                [{'params': self.policy.get_koopman_params()},
+            policy_optim_params = [{'params':self.policy.get_koopman_params()},
                 {'params': self.policy._init_std},
-                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr}],
-                lr=self._policy_lr)
+                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr}]
         
         self._koopman_param = koopman_param
 
-        if self._koopman_param._least_square_fit_coeff > 0:
+        if self._koopman_param._least_square_fit_coeff < 0:
             #the matrices will now be the result of least square procedure
-            self.policy._kpm_ctrl._phi_affine.requires_grad = False
-            self.policy._kpm_ctrl._u_affine.requires_grad = False
-        
+            policy_optim_params.append({'params':self.policy.get_lindyn_params(), 'lr':nonnn_lr})
+
+        self._policy_optimizer = self._optimizer(policy_optim_params, lr=self._policy_Lr)
+
         if self._koopman_param._koopman_recons_coeff < 0:
             if self.policy._kpm_ctrl._phi_inv is not None:
                 for param in self.policy._kpm_ctrl._phi_inv.parameters():

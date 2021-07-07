@@ -57,17 +57,18 @@ class KoopmanLQRPPO(PPO):
         #overload original policy optimizer if residual exists
         if self.policy._residual is not None:
             #apply weight decay to regularize residual part
-            policy_optim_params = [
-                {'params': self.policy.get_koopman_params()},
-                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr},
+            policy_optim_params = [{'params': self.policy.get_koopman_params()},
+                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr},
                 {'params': self.policy._init_std},
                 {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}]
         else:
-            policy_optim_params = [
-                {'params': self.policy.get_koopman_params()},
+            policy_optim_params = [{'params': self.policy.get_koopman_params()},
                 {'params': self.policy._init_std},      #dont forget about the exploration std of Gaussian policy
-                {'params': self.policy.get_qr_params()+self.policy.get_lindyn_params(), 'lr':nonnn_lr}]
+                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr}]
         
+        if self._koopman_param._least_square_fit_coeff < 0:
+            policy_optim_params.append({'params':self.policy.get_lindyn_params(), 'lr':nonnn_lr})
+
         if policy_optimizer is None:
             policy_optimizer = torch.optim.Adam
             #note by default PPO/VPG will use a wrapper to construct the optimizer. we need to update the nested one

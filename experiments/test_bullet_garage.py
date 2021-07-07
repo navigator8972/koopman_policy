@@ -219,7 +219,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         #policy.set_state_goal_learnable(state_goal=None, learnable=False)
 
         koopman_param = KoopmanLQRRLParam(
-            least_square_fit_coeff=-1,
+            least_square_fit_coeff=-1,    #use least square
             koopman_fit_coeff=1,
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
@@ -234,7 +234,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     #shared settings    
     #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
-                                              hidden_sizes=(32, 32),
+                                              hidden_sizes=(hidden_size, hidden_size),
                                               hidden_nonlinearity=torch.relu,
                                               output_nonlinearity=None)
 
@@ -279,11 +279,11 @@ seeds = [1, 21, 52, 251, 521]
 #[2, 12, 51, 125, 512]
 # seeds = [521]
 for seed in seeds: 
-    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
-    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
-    koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
+    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
+    # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
-    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
+    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
     # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 #test the impact of time horizon
 #for seed in seeds:
