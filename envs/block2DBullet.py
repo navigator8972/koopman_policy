@@ -110,6 +110,12 @@ class Block2DRobot(XmlBasedRobot):
                     self._p, self.objects)
         self.robot_specific_reset(self._p)
 
+        #change dynamics to ensure joint damping is set. see https://github.com/bulletphysics/bullet3/issues/1916
+        # jntx, jnty = self.jdict['slidex'], self.jdict['slidey']
+
+        # self._p.changeDynamics(jntx.bodyIndex, jntx.jointIndex, linearDamping=1.0, angularDamping=1.0, jointDamping=1.0)
+        # self._p.changeDynamics(jnty.bodyIndex, jnty.jointIndex, linearDamping=1.0, angularDamping=1.0, jointDamping=1.0)
+
         s = self.calc_state(
         )  # optimization: calc_state() can calculate something in self.* for calc_potential() to use
 
@@ -199,6 +205,16 @@ if __name__ == '__main__':
         env.reset()
         # print(env.robot.observation_space.high, env.robot.observation_space.low)
         # print(env.robot.jdict['slidex'].lowerLimit,env.robot.jdict['slidex'].upperLimit)
+        # print(env.robot.jdict['slidey'].lowerLimit,env.robot.jdict['slidey'].upperLimit)
+        jnt = env.robot.jdict['slidey']
+        jointInfo = jnt._p.getJointInfo(jnt.bodies[jnt.bodyIndex], jnt.jointIndex)
+        print(jnt.bodyIndex, jointInfo)
+
+        jnt = env.robot.jdict['slidex']
+        jointInfo = jnt._p.getJointInfo(jnt.bodies[jnt.bodyIndex], jnt.jointIndex)
+        print(jnt.bodyIndex, jointInfo)
+
+        # print(env.robot.objects)
         for i in range(200):
             env.step(env.action_space.sample())
             time.sleep(dt)

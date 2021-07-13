@@ -76,8 +76,8 @@ class KoopmanLQR(nn.Module):
             self._u_affine = nn.Parameter(u_affine)
         
         # try to avoid degenerated case, can it be fixed with initialization?
-        torch.nn.init.normal_(self._phi_affine, mean=0, std=1.0)
-        torch.nn.init.normal_(self._u_affine, mean=0, std=1.0)
+        torch.nn.init.normal_(self._phi_affine, mean=0, std=1)
+        torch.nn.init.normal_(self._u_affine, mean=0, std=1)
 
         #parameters of quadratic functions
         self._q_diag_log = nn.Parameter(torch.zeros(k))  #to use: Q = diag(_q_diag_log.exp())

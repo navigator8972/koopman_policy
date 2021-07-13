@@ -70,18 +70,15 @@ class KoopmanLQRSAC(SAC):
             )
         #overload original policy optimizer if residual exists
         nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr is not None else policy_lr
-        if self.policy._residual is not None:
-            #apply weight decay to regularize residual part
-            policy_optim_params = [{'params':self.policy.get_koopman_params()},
-                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr},
-                {'params': self.policy._init_std},
-                {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}]
-        else:
-            policy_optim_params = [{'params':self.policy.get_koopman_params()},
+        self._koopman_param = koopman_param
+
+        policy_optim_params = [{'params':self.policy.get_koopman_params()},
                 {'params': self.policy._init_std},
                 {'params': self.policy.get_qr_params(), 'lr':nonnn_lr}]
-        
-        self._koopman_param = koopman_param
+
+        if self.policy._residual is not None:
+            #apply weight decay to regularize residual part
+            policy_optim_params.append({'params': self.policy._residual.parameters(), 'weight_decay': 0.05})
 
         if self._koopman_param._least_square_fit_coeff < 0:
             #the matrices will now be the result of least square procedure

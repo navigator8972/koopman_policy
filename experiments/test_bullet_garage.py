@@ -176,7 +176,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
         print('Using Vanilla NN Policy')
         policy = GaussianMLPPolicy(env.spec,
                                 hidden_sizes=[hidden_size, hidden_size],
-                                hidden_nonlinearity=F.relu,
+                                hidden_nonlinearity=torch.relu,
                                 output_nonlinearity=None)
 
         #disable all koopman relevant parameters so the PPO will be vanilla as well
@@ -220,12 +220,12 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
         koopman_param = KoopmanLQRRLParam(
             least_square_fit_coeff=-1,    #use least square
-            koopman_fit_coeff=1,
+            koopman_fit_coeff=1e-2,
             koopman_fit_coeff_errbound=-1,
             koopman_fit_optim_lr=-1,
             koopman_fit_n_itrs=-1,
-            koopman_fit_mat_reg_coeff=1e-3,
-            koopman_recons_coeff=1,
+            koopman_fit_mat_reg_coeff=-1,
+            koopman_recons_coeff=-1,
             koopman_nonnn_lr=1e-2
         )
 
@@ -235,7 +235,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                               hidden_sizes=(hidden_size, hidden_size),
-                                              hidden_nonlinearity=torch.relu,
+                                              hidden_nonlinearity=F.relu,
                                               output_nonlinearity=None)
 
     
@@ -272,19 +272,21 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
     trainer.setup(algo, env)
     trainer.train(n_epochs=50, batch_size=12000, plot=False)
+    # print(policy._kpm_ctrl._phi_affine, policy._kpm_ctrl._u_affine, policy._kpm_ctrl._q_diag_log, policy._kpm_ctrl._g_goal)
+    # print(torch.eig(policy._kpm_ctrl._phi_affine)[0])
     return
 
 seeds = [1, 21, 52, 251, 521]
 # seeds = [251, 521]
-#[2, 12, 51, 125, 512]
-# seeds = [521]
+# seeds = [2, 12, 51, 125, 512]
+# seeds = [251]
 for seed in seeds: 
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla')
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=5)
     # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
-    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
+    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla')
     koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman')
-    # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
+    koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', policy_horizon=5)
 #test the impact of time horizon
 #for seed in seeds:
     # for h in [2, 5, 8, 12, 15]:

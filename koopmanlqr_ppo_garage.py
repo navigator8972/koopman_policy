@@ -54,17 +54,14 @@ class KoopmanLQRPPO(PPO):
         self._koopman_param = koopman_param
         self._policy_lr = 2.5e-4   #default of garage PPO
         nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr is not None else self._policy_lr
+
+        policy_optim_params = [{'params': self.policy.get_koopman_params()},
+                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr},
+                {'params': self.policy._init_std}]
         #overload original policy optimizer if residual exists
         if self.policy._residual is not None:
             #apply weight decay to regularize residual part
-            policy_optim_params = [{'params': self.policy.get_koopman_params()},
-                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr},
-                {'params': self.policy._init_std},
-                {'params': self.policy._residual.parameters(), 'weight_decay': 0.05}]
-        else:
-            policy_optim_params = [{'params': self.policy.get_koopman_params()},
-                {'params': self.policy._init_std},      #dont forget about the exploration std of Gaussian policy
-                {'params': self.policy.get_qr_params(), 'lr':nonnn_lr}]
+                policy_optim_params.append({'params': self.policy._residual.parameters(), 'weight_decay': 0.05})
         
         if self._koopman_param._least_square_fit_coeff < 0:
             policy_optim_params.append({'params':self.policy.get_lindyn_params(), 'lr':nonnn_lr})
