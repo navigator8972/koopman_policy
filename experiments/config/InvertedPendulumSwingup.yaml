@@ -1,0 +1,16 @@
+env_name:     InvertedPendulumSwingupBulletEnv-v0
+rl_algo:      ppo
+hidden_size:  256
+num_epochs:   100
+batch_size:   10000
+
+koopman_size:                 4
+koopman_horizon:              5
+least_square_fit_coeff:       -1
+koopman_fit_coeff:            1
+koopman_fit_coeff_errbound:   -1
+koopman_fit_optim_lr:         -1
+koopman_fit_n_itrs:           -1
+koopman_fit_mat_reg_coeff:    0.01
+koopman_recons_coeff:         1 
+koopman_nonnn_lr:             0.01

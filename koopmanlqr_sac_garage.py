@@ -84,7 +84,7 @@ class KoopmanLQRSAC(SAC):
             #the matrices will now be the result of least square procedure
             policy_optim_params.append({'params':self.policy.get_lindyn_params(), 'lr':nonnn_lr})
 
-        self._policy_optimizer = self._optimizer(policy_optim_params, lr=self._policy_Lr)
+        self._policy_optimizer = self._optimizer(policy_optim_params, lr=self._policy_lr)
 
         if self._koopman_param._koopman_recons_coeff < 0:
             if self.policy._kpm_ctrl._phi_inv is not None:
