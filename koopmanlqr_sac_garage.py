@@ -156,13 +156,13 @@ class KoopmanLQRSAC(SAC):
                 recons_err = self.policy._kpm_ctrl._koopman_recons_loss(obs)
 
         with tabular.prefix(prefix + '/'):
-            tabular.record('Koopman Fit Error', fit_err.item())
+            tabular.record('Koopman_Fit_Error', fit_err.item())
             # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
             #     tabular.record('Pearson Correlation', corrcoef_det)
-            tabular.record('Koopman Fit Coeff', self._koopman_param._koopman_fit_coeff)
+            tabular.record('Koopman_Fit_Coeff', self._koopman_param._koopman_fit_coeff)
             
             if self._koopman_param._koopman_recons_coeff > 0:
-                tabular.record('Koopman Recons Error', recons_err.item())
+                tabular.record('Koopman_Recons_Error', recons_err.item())
         return
     
     def _critic_objective(self, samples_data):

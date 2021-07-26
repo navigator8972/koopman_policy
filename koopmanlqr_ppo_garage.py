@@ -117,13 +117,13 @@ class KoopmanLQRPPO(PPO):
                 tol_obj = tol_obj - self._koopman_param._koopman_recons_coeff * koopman_recons_err
             
             with tabular.prefix('KoopmanAux/'):
-                tabular.record('Koopman Fit Error', koopman_fit_err.item())
+                tabular.record('Koopman_Fit_Error', koopman_fit_err.item())
                 # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
                 #     tabular.record('Pearson Correlation', corrcoef_det)
-                tabular.record('Koopman Fit Coeff', self._koopman_param._koopman_fit_coeff)
+                tabular.record('Koopman_Fit_Coeff', self._koopman_param._koopman_fit_coeff)
                 
                 if self._koopman_param._koopman_recons_coeff > 0:
-                    tabular.record('Koopman Recons Error', koopman_recons_err.item())
+                    tabular.record('Koopman_Recons_Error', koopman_recons_err.item())
         else:
             tol_obj = ppo_obj
 

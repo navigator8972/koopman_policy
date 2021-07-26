@@ -159,8 +159,8 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
     env = normalize(BulletEnv(config['env_name']))
 
-    print(env.spec.observation_space)
-    print(env.spec.observation_space.flat_dim)
+    # print(env.spec.observation_space)
+    # print(env.spec.observation_space.flat_dim)
 
     if policy_horizon is None:
         policy_horizon = config['koopman_horizon']
