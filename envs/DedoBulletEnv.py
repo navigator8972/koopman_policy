@@ -40,3 +40,7 @@ class DeformBulletEnv(DeformEnv):
 class HangBagBulletEnv(DeformBulletEnv):
     def get_task_name(self):
         return 'HangBag'
+
+class HangClothBulletEnv(DeformBulletEnv):
+    def get_task_name(self):
+        return 'HangCloth'

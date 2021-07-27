@@ -1,4 +1,4 @@
-env_name:     HangBagBulletEnv-v0
+env_name:     HangClothBulletEnv-v0
 rl_algo:      ppo
 hidden_size:  32
 num_epochs:   50

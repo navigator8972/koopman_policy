@@ -10,7 +10,6 @@ from garage.envs.bullet import BulletEnv
 from garage.envs import normalize
 
 from garage.experiment.deterministic import set_seed
-from garage.sampler import RaySampler
 
 from garage.torch.algos import PPO
 from garage.torch.policies import GaussianMLPPolicy, TanhGaussianMLPPolicy
@@ -23,7 +22,7 @@ from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC
 from koopman_policy.koopmanlqr_ppo_garage import KoopmanLQRPPO
 
 from garage.replay_buffer import PathBuffer
-from garage.sampler import DefaultWorker, LocalSampler
+from garage.sampler import DefaultWorker, LocalSampler, VecWorker, RaySampler, MultiprocessingSampler
 from garage.torch import set_gpu_mode
 from garage.torch.algos import SAC
 
@@ -39,6 +38,10 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
     if policy_horizon is None:
         policy_horizon = config['koopman_horizon']
+    if 'num_evaluation_episodes' in config:
+        num_evaluation_episodes = config['num_evaluation_episodes']
+    else:
+        num_evaluation_episodes = 1
 
     #need a separate seed for gym environment for full determinism
     env.seed(seed)
@@ -56,7 +59,6 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 
-
     if policy_type == 'vanilla':
         policy = TanhGaussianMLPPolicy(
             env_spec=env.spec,
@@ -67,25 +69,6 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             max_std=np.exp(2.),
         )
 
-        sampler = LocalSampler(agents=policy,
-                        envs=env,
-                        max_episode_length=env.spec.max_episode_length,
-                        worker_class=DefaultWorker)
-
-        sac = SAC(env_spec=env.spec,
-            policy=policy,
-            qf1=qf1,
-            qf2=qf2,
-            sampler=sampler,
-            gradient_steps_per_itr=1000,
-            max_episode_length_eval=config['max_episode_length_eval'],
-            replay_buffer=replay_buffer,
-            min_buffer_size=1e4,
-            target_update_tau=5e-3,
-            discount=0.99,
-            buffer_batch_size=256,
-            reward_scale=1.,
-            steps_per_epoch=1)
     else:
         in_dim = env.spec.observation_space.flat_dim
         hidden_dim = hidden_size
@@ -107,11 +90,6 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             use_state_goal='latent'
         )
 
-        sampler = LocalSampler(agents=policy,
-                        envs=env,
-                        max_episode_length=env.spec.max_episode_length,
-                        worker_class=DefaultWorker)
-
         koopman_param = KoopmanLQRRLParam(
                 least_square_fit_coeff=config['least_square_fit_coeff'],    #use least square
                 koopman_fit_coeff=config['koopman_fit_coeff'],
@@ -122,7 +100,33 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                 koopman_recons_coeff=config['koopman_recons_coeff'],
                 koopman_nonnn_lr=config['koopman_nonnn_lr']
             )
-
+    # sampler = RaySampler(agents=policy,
+    #                 envs=env,
+    #                 max_episode_length=env.spec.max_episode_length,
+    #                 worker_class=DefaultWorker)
+    sampler = LocalSampler(agents=policy,
+                    envs=env,
+                    max_episode_length=env.spec.max_episode_length,
+                    worker_class=DefaultWorker)
+                    
+    if policy_type == 'vanilla':
+        sac = SAC(env_spec=env.spec,
+            policy=policy,
+            qf1=qf1,
+            qf2=qf2,
+            sampler=sampler,
+            gradient_steps_per_itr=1000,
+            max_episode_length_eval=config['max_episode_length_eval'],
+            replay_buffer=replay_buffer,
+            min_buffer_size=1e4,
+            target_update_tau=5e-3,
+            discount=0.99,
+            buffer_batch_size=256,
+            reward_scale=1.,
+            steps_per_epoch=1,
+            num_evaluation_episodes=num_evaluation_episodes,
+            )
+    else:
         sac = KoopmanLQRSAC(env_spec=env.spec,
             policy=policy,
             qf1=qf1,
@@ -140,7 +144,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             #new params
             koopman_param=koopman_param
             )
-
+    # so far garage does not support ray sampler for gpu
     if torch.cuda.is_available():
         set_gpu_mode(True)
     else:
@@ -234,9 +238,10 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
                                               hidden_nonlinearity=F.relu,
                                               output_nonlinearity=None)
 
-    sampler = LocalSampler(agents=policy,
+    sampler = MultiprocessingSampler(agents=policy,
                         envs=env,
-                        max_episode_length=env.spec.max_episode_length)
+                        max_episode_length=env.spec.max_episode_length,
+                        worker_class=DefaultWorker)
 
     if policy_type=='vanilla':
         algo = PPO(env_spec=env.spec,
@@ -315,7 +320,7 @@ def main(args):
     #koopmanlqr_sac_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
 
 RIGID_EXP_NAMES = ['InvertedPendulumSwingup', 'InvertedPendulum', 'Block2D', 'HalfCheetah', 'Ant']
-DEFORM_EXP_NAMES = ['HangBag']
+DEFORM_EXP_NAMES = ['HangBag', 'HangCloth']
 
 
 if __name__ == '__main__':

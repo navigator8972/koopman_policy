@@ -18,6 +18,13 @@ register(
      max_episode_steps=400,
 )
 
+register(
+     id='HangClothBulletEnv-v0',
+     entry_point='koopman_policy.envs:HangClothBulletEnv',
+     max_episode_steps=400,
+)
+
+
 # register(
 #      id='YumiPeg-v0',
 #      entry_point='koopman_policy.envs:YumiPegEnv',
