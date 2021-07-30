@@ -53,7 +53,7 @@ class PivotingEnv(gym.Env):
 
         self.dt = 1e-3      #time step for integration
         self.T = 100        #number of steps
-        self.ctrl_freq = 50 #internal integration steps
+        self.ctrl_freq = 1 #internal integration steps
 
         self.phi_range = np.pi*2
 
@@ -79,14 +79,14 @@ class PivotingEnv(gym.Env):
 
         act_high = np.array(
             [
-                np.finfo(np.float32).max,       #not realistic though
+                1000,       
                 self.d0                         #not realistic as there is always delay to command the desired finger distance
             ]
         )
 
         act_low = np.array(
             [
-                np.finfo(np.float32).min,
+                -1000,
                 0
             ]
         )
@@ -110,15 +110,18 @@ class PivotingEnv(gym.Env):
         """
         
         # common values
-        I_plus_mrsquare = self.I + self.mass*self.r^2
+        I_plus_mrsquare = self.I + self.mass*self.r ** 2
         mlr = self.mass*self.l*self.r
         mgr = self.mass*self.g*self.r
 
-        for i in range(self.ctrl_freq):
+        for _ in range(self.ctrl_freq):
             next_state = np.copy(self.state)
             #first lets integrate gripper kinematics, using semi-implicit euler
             next_state[3] += action[0]*self.dt
             next_state[2] += next_state[3]*self.dt
+            if next_state[2] < -np.pi/2 or next_state[2] > np.pi/2:
+                next_state[3] = 0 
+            next_state[2] = np.clip(next_state[2], -np.pi/2, np.pi/2)
             
             #now integrate pole dynamics
             #normal force
@@ -128,12 +131,16 @@ class PivotingEnv(gym.Env):
 
             next_state[1] += acc*self.dt
             next_state[0] += next_state[1]*self.dt
+            #clip velocity
+            if next_state[0] < -np.pi or next_state[0] > np.pi:
+                next_state[1] = 0 
+            next_state[0] = np.clip(next_state[0], -np.pi, np.pi)
 
             #enforce action on finger distance, this may be subject to a dynamical process as well
             next_state[4] = action[1]
 
             self.state = next_state
-        
+
         self.t += 1
 
         if self.t >= self.T:
@@ -166,37 +173,52 @@ class PivotingEnv(gym.Env):
         2D plot to illustrate planar 2-link underactuated system
         setups referred to cartpole
         """
-        screen_width=600
-        screen_height=400
+        screen_width=800
+        screen_height=800
 
-        gripper_link_length = self.l
-        gripper_link_width = self.l/2
+        phys_pixel_ratio = 700   #0.8 m corresponds to 600 pixels
 
-        pole_link_length = self.r*2
-        pole_link_width = self.r/2
+        gripper_link_length = self.l * phys_pixel_ratio
+        gripper_link_width = self.l/2 * phys_pixel_ratio
+
+        pole_link_length = self.r*2 * phys_pixel_ratio
+        pole_link_width = self.r/2 * phys_pixel_ratio
+
+
         if self.viewer is None:
             from gym.envs.classic_control import rendering
 
+            base_trans = rendering.Transform(translation=(200, 400))
             self.viewer = rendering.Viewer(screen_width, screen_height)
             #gripper polygon
             l, r, t, b = -gripper_link_length/2, gripper_link_length/2, gripper_link_width/2, -gripper_link_width/2
             gripper_link = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
 
             self.gripper_link_trans = rendering.Transform()
+            gripper_link.add_attr(rendering.Transform(translation=(gripper_link_length/2, 0)))
             gripper_link.add_attr(self.gripper_link_trans)
+            gripper_link.add_attr(base_trans)
+
+            self.viewer.add_geom(gripper_link)
 
             #pole
             l, r, t, b = -pole_link_length/2, pole_link_length/2, pole_link_width/2, -pole_link_width/2
             pole_link = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
             pole_link.set_color(0.8, 0.6, 0.4)
-            self.pole_trans = rendering.Transform(translation=(self.l, 0))
+            
+            self.pole_trans = rendering.Transform()
+            pole_link.add_attr(rendering.Transform(translation=(pole_link_length/2, 0)))
             pole_link.add_attr(self.pole_trans)
+            pole_link.add_attr(rendering.Transform(translation=(gripper_link_length, 0)))
             pole_link.add_attr(self.gripper_link_trans)
+            pole_link.add_attr(base_trans)
+
             self.viewer.add_geom(pole_link)
 
             #axle
-            self.axle = rendering.make_circle(gripper_link_width/2)
+            self.axle = rendering.make_circle(gripper_link_width/8)
             self.axle.set_color(0.5, 0.5, 0.8)
+            self.axle.add_attr(base_trans)
             self.viewer.add_geom(self.axle)
         
 
@@ -213,3 +235,16 @@ class PivotingEnv(gym.Env):
             self.viewer.close()
             self.viewer = None
     
+if __name__ == '__main__':
+    "a test"
+    import time
+    dt = 1./50.
+    env = PivotingEnv()
+    env.reset()
+   
+    for i in range(1000):
+        env.step(env.action_space.sample())
+        # time.sleep(dt)
+        env.render()
+    
+    env.close()
