@@ -9,10 +9,10 @@ koopman_size:                 4
 koopman_horizon:              5
 
 least_square_fit_coeff:       -1
-koopman_fit_coeff:            0.1
+koopman_fit_coeff:            1
 koopman_fit_coeff_errbound:   -1
 koopman_fit_optim_lr:         -1
 koopman_fit_n_itrs:           -1
 koopman_fit_mat_reg_coeff:    -1
-koopman_recons_coeff:         -1 
+koopman_recons_coeff:         1 
 koopman_nonnn_lr:             0.01
