@@ -52,7 +52,7 @@ class PivotingEnv(gym.Env):
         self.kmu_c = 9.906  #Coulomb friction coefficient
 
         self.dt = 1e-3      #time step for integration
-        self.T = 100        #number of steps
+        self.T = 250        #number of steps
         self.ctrl_freq = 1 #internal integration steps
 
         self.phi_range = np.pi*2
@@ -148,7 +148,10 @@ class PivotingEnv(gym.Env):
         else:
             done = False
         
-        reward = -(self.state[0]-self.target)/self.phi_range
+        reward = -np.abs(self.state[0]-self.target)/self.phi_range
+        if np.abs(self.state[0]-self.target) < np.radians(3) and np.abs(self.state[1]) < 0.1:
+            #reach the goal region +-3 deg and almost static, bonus reward
+            reward += 1
         return self.get_obs(), reward, done, {}
     
     def reset(self):
@@ -218,9 +221,9 @@ class PivotingEnv(gym.Env):
             #pole target
             pole_link_target = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
             pole_link_target._color.vec4 = (0.8, 0.6, 0.4, 0.3) #try to use transparency
-            
+            self.pole_link_target_trans = rendering.Transform()
             pole_link_target.add_attr(rendering.Transform(translation=(pole_link_length/2, 0)))
-            pole_link_target.add_attr(rendering.Transform(rotation=self.target))
+            pole_link_target.add_attr(self.pole_link_target_trans)
             pole_link_target.add_attr(rendering.Transform(translation=(gripper_link_length, 0)))
             pole_link_target.add_attr(self.gripper_link_trans)
             pole_link_target.add_attr(base_trans)
@@ -239,6 +242,7 @@ class PivotingEnv(gym.Env):
         
         self.gripper_link_trans.set_rotation(self.state[2])
         self.pole_trans.set_rotation(self.state[0])
+        self.pole_link_target_trans.set_rotation(self.target)
         
         return self.viewer.render(return_rgb_array=mode == "rgb_array")
 

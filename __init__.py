@@ -13,6 +13,12 @@ register(
 )
 
 register(
+     id='PivotingEnv-v0',
+     entry_point='koopman_policy.envs:PivotingEnv',
+     max_episode_steps=100,
+)
+
+register(
      id='HangBagBulletEnv-v0',
      entry_point='koopman_policy.envs:HangBagBulletEnv',
      max_episode_steps=400,
