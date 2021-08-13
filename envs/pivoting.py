@@ -215,6 +215,18 @@ class PivotingEnv(gym.Env):
 
             self.viewer.add_geom(pole_link)
 
+            #pole target
+            pole_link_target = rendering.FilledPolygon([(l, b), (l, t), (r, t), (r, b)])
+            pole_link_target._color.vec4 = (0.8, 0.6, 0.4, 0.3) #try to use transparency
+            
+            pole_link_target.add_attr(rendering.Transform(translation=(pole_link_length/2, 0)))
+            pole_link_target.add_attr(rendering.Transform(rotation=self.target))
+            pole_link_target.add_attr(rendering.Transform(translation=(gripper_link_length, 0)))
+            pole_link_target.add_attr(self.gripper_link_trans)
+            pole_link_target.add_attr(base_trans)
+
+            self.viewer.add_geom(pole_link_target)
+
             #axle
             self.axle = rendering.make_circle(gripper_link_width/8)
             self.axle.set_color(0.5, 0.5, 0.8)
