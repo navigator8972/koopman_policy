@@ -9,6 +9,7 @@ from garage.sampler import LocalSampler, MultiprocessingSampler
 from garage.np.policies import FixedPolicy
 from garage.trainer import Trainer
 
+
 import numpy as np
 import koopman_policy
 
@@ -24,6 +25,11 @@ class TimeIndexTrajectoryPolicy(FixedPolicy):
 
     def get_param_values(self):
         return self._scripted_actions.flatten()
+    
+    def get_action(self, observation):
+        action, agent_info = super().get_action(observation)
+        return np.tanh(action), agent_info  #squashing trajectory. this would prevent cem saturate by clipping out of bound samples?
+
 
 @wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
 def cem_dedo(ctxt=None, seed=1):
@@ -43,8 +49,9 @@ def cem_dedo(ctxt=None, seed=1):
                                     T=env.spec.max_episode_length)
 
     n_samples = 20
+    n_epochs = 50
 
-    sampler = MultiprocessingSampler(agents=policy,
+    sampler = LocalSampler(agents=policy,
                             envs=env,
                             max_episode_length=env.spec.max_episode_length,
                             )
@@ -52,11 +59,13 @@ def cem_dedo(ctxt=None, seed=1):
     algo = CEM(env_spec=env.spec,
                 policy=policy,
                 sampler=sampler,
-                best_frac=0.05,
-                n_samples=n_samples)
+                best_frac=0.3,
+                n_samples=n_samples,
+                extra_decay_time=n_epochs * 1.
+                )
 
     trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=env.spec.max_episode_length)
+    trainer.train(n_epochs=n_epochs, batch_size=env.spec.max_episode_length)
 
 
 cem_dedo(seed=1)

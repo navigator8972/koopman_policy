@@ -91,7 +91,8 @@ def rollout(env,
     image_array = []    
     while episode_length < (max_episode_length or np.inf):
         if not is_softgym:
-            img = env._env.render(mode='rgb_array')
+            #use nested env directly. some may not implement render_modes() function
+            img = env._env._env.render(mode='rgb_array')
             image_array.append(img)
 
         if pause_per_frame is not None:
@@ -164,7 +165,7 @@ def main():
     policy = data['algo'].policy
     env = data['env']
 
-    policy.cpu()
+    # policy.cpu()
 
     if args.use_softgym:
         try:
@@ -178,7 +179,7 @@ def main():
 
     # See what the trained policy can accomplish
     print('Starting to run a rollout...')
-    path = rollout(env, policy, max_episode_length=500, animated=False, video_name='test', pause_per_frame=0.01, deterministic=True, is_softgym=args.use_softgym)
+    path = rollout(env, policy, max_episode_length=env.spec.max_episode_length, animated=False, video_name='test', pause_per_frame=0.01, deterministic=True, is_softgym=args.use_softgym)
     
     return
 
