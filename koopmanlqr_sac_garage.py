@@ -69,7 +69,7 @@ class KoopmanLQRSAC(SAC):
             use_deterministic_evaluation=use_deterministic_evaluation
             )
         #overload original policy optimizer if residual exists
-        nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr is not None else policy_lr
+        nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr > 0 else policy_lr
         self._koopman_param = koopman_param
 
         policy_optim_params = [{'params':self.policy.get_koopman_params()},

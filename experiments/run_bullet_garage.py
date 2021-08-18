@@ -306,7 +306,7 @@ def main(args):
             koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', config=config)
             koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', config=config)
         elif config['rl_algo'] == 'ppo':
-            koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla', config=config)
+            # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla', config=config)
             koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman', config=config)
             koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', config=config)
         else:

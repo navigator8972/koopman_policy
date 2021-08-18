@@ -42,14 +42,14 @@ def cem_dedo(ctxt=None, seed=1):
     """
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    env = normalize(BulletEnv('HangBagBulletEnv-v0'))
+    env = normalize(BulletEnv('LassoBulletEnv-v0'))
 
     #a sequence of actions...
     policy = TimeIndexTrajectoryPolicy(env_spec=env.spec,
                                     T=env.spec.max_episode_length)
 
     n_samples = 20
-    n_epochs = 50
+    n_epochs = 100
 
     sampler = LocalSampler(agents=policy,
                             envs=env,
