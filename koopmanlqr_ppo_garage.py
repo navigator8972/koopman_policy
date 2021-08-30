@@ -9,6 +9,7 @@ from dowel import tabular
 
 from garage.torch.algos import PPO
 from garage.torch import global_device
+from garage.torch._functions import np_to_torch
 
 from koopman_policy.koopmanlqr_policy_garage import KoopmanLQRRLParam
 
@@ -55,6 +56,7 @@ class KoopmanLQRPPO(PPO):
         self._policy_lr = 2.5e-4   #default of garage PPO
         nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr > 0 else self._policy_lr
 
+        koopman_optim_params = [{'params': self.policy.get_koopman_params()},]
         policy_optim_params = [{'params': self.policy.get_koopman_params()},
                 {'params': self.policy.get_qr_params(), 'lr':nonnn_lr},
                 {'params': self.policy._init_std}]
@@ -70,8 +72,11 @@ class KoopmanLQRPPO(PPO):
             policy_optimizer = torch.optim.Adam
             #note by default PPO/VPG will use a wrapper to construct the optimizer. we need to update the nested one
             self._policy_optimizer._optimizer = policy_optimizer(policy_optim_params, lr=self._policy_lr)
+            
         else:
             self._policy_optimizer = policy_optimizer(policy_optim_params, lr=self._policy_lr)
+        
+        self._koopman_optimizer = torch.optim.Adam(koopman_optim_params, lr=self._policy_lr)
         return
     
     def _koopman_fit_objective(self, samples_data):
@@ -127,12 +132,50 @@ class KoopmanLQRPPO(PPO):
         else:
             tol_obj = ppo_obj
 
-
+        # tol_obj = ppo_obj
         return tol_obj
 
     def _train_once(self, itr, eps):
         self.policy.train()
         res = super()._train_once(itr, eps)
+        #train koopman operator
+        # if self._koopman_param._koopman_fit_coeff > 0:
+            
+
+        #     obs = np_to_torch(eps.observations)
+        #     actions = np_to_torch(eps.actions)
+
+        #     samples_data = {
+        #         'observation': obs[:-1, :],
+        #         'action': actions[:-1, :],
+        #         'next_observation': obs[1:, :]
+        #     }
+        #     for i in range(5):
+        #         self._koopman_optimizer.zero_grad()
+
+        #         koopman_fit_err = self._koopman_fit_objective(samples_data)
+        #         tol_obj = self._koopman_param._koopman_fit_coeff * koopman_fit_err
+
+        #         if self._koopman_param._koopman_fit_mat_reg_coeff > 0:
+        #             tol_obj = tol_obj + self._koopman_param._koopman_fit_mat_reg_coeff * self.policy._kpm_ctrl._koopman_matreg_loss()
+
+        #         #now bind recons term with koopman fit, because i dont see why to only use recons as the aux obj
+        #         if self._koopman_param._koopman_recons_coeff > 0:
+        #             koopman_recons_err = self._koopman_recons_objective(samples_data)
+        #             tol_obj = tol_obj + self._koopman_param._koopman_recons_coeff * koopman_recons_err
+                
+        #         tol_obj.backward()
+        #         self._koopman_optimizer.step()
+            
+        #     with tabular.prefix('KoopmanAux/'):
+        #         tabular.record('Koopman_Fit_Error', koopman_fit_err.item())
+        #         # if self.policy._kpm_ctrl._k == self.env_spec.observation_space.flat_dim:
+        #         #     tabular.record('Pearson Correlation', corrcoef_det)
+        #         tabular.record('Koopman_Fit_Coeff', self._koopman_param._koopman_fit_coeff)
+                
+        #         if self._koopman_param._koopman_recons_coeff > 0:
+        #             tabular.record('Koopman_Recons_Error', koopman_recons_err.item())
+
         #update target phi
         if self._koopman_param._koopman_target_update_tau_phi > 0:
             self.policy._kpm_ctrl._update_target_phi(self._koopman_param._koopman_target_update_tau_phi)

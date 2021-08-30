@@ -51,11 +51,11 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 
     qf1 = ContinuousMLPQFunction(env_spec=env.spec,
                                  hidden_sizes=[hidden_size, hidden_size],
-                                 hidden_nonlinearity=F.relu)
+                                 hidden_nonlinearity=torch.relu)
 
     qf2 = ContinuousMLPQFunction(env_spec=env.spec,
                                  hidden_sizes=[hidden_size, hidden_size],
-                                 hidden_nonlinearity=F.relu)
+                                 hidden_nonlinearity=torch.relu)
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 
@@ -154,6 +154,7 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     trainer.train(n_epochs=config['num_epochs'], batch_size=config['batch_size'], plot=False)
     return
 
+import akro
 
 @wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
 def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy_horizon=None, config=None):
@@ -235,13 +236,17 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                               hidden_sizes=(hidden_size, hidden_size),
-                                              hidden_nonlinearity=F.relu,
+                                              hidden_nonlinearity=torch.tanh,
                                               output_nonlinearity=None)
 
     sampler = MultiprocessingSampler(agents=policy,
                         envs=env,
                         max_episode_length=env.spec.max_episode_length,
                         worker_class=DefaultWorker)
+    # sampler = LocalSampler(agents=policy,
+    #                     envs=env,
+    #                     max_episode_length=env.spec.max_episode_length,
+    #                     worker_class=DefaultWorker)
 
     if policy_type=='vanilla':
         algo = PPO(env_spec=env.spec,
@@ -270,7 +275,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     #     set_gpu_mode(False)
     # algo.to()
     trainer.setup(algo, env)
-    trainer.train(n_epochs=config['num_epochs'], batch_size=config['batch_size'], plot=False)
+    trainer.train(n_epochs=config['num_epochs'], batch_size=config['batch_size'], plot=False)   
     # print(policy._kpm_ctrl._phi_affine, policy._kpm_ctrl._u_affine, policy._kpm_ctrl._q_diag_log, policy._kpm_ctrl._g_goal)
     # print(torch.eig(policy._kpm_ctrl._phi_affine)[0])
     return
@@ -297,9 +302,10 @@ def main(args):
     #     config['deform_env'] = False
     
     seeds = [1, 21, 52, 251, 521]
+    # seeds = [21, 52, 251, 521]
     # seeds = [251, 521]
-    # seeds = [2, 12, 51, 125, 512]
-    # seeds = [251]
+    # seeds = [2, 12, 52, 125, 251]
+
     for seed in seeds: 
         if config['rl_algo'] == 'sac':
             koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla', config=config)
@@ -320,7 +326,7 @@ def main(args):
     #koopmanlqr_sac_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
 
 RIGID_EXP_NAMES = ['InvertedPendulumSwingup', 'InvertedPendulum', 'Block2D', 'HalfCheetah', 'Ant']
-DEFORM_EXP_NAMES = ['HangBag', 'HangCloth']
+DEFORM_EXP_NAMES = ['HangBag', 'HangCloth', 'Hoop']
 
 
 if __name__ == '__main__':
