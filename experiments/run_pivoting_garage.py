@@ -132,7 +132,7 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
     #     set_gpu_mode(False)
     # algo.to()
     trainer.setup(algo, env)
-    trainer.train(n_epochs=4500, batch_size=5000, plot=False)
+    trainer.train(n_epochs=20, batch_size=40000, plot=True)
     return
 
 

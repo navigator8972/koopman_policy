@@ -52,7 +52,7 @@ class PivotingEnv(gym.Env):
         self.kmu_c = 9.906  #Coulomb friction coefficient
 
         self.dt = 1e-3      #time step for integration
-        self.T = 250        #number of steps
+        self.T = 4000       #number of steps
         self.ctrl_freq = 1 #internal integration steps
 
         self.phi_range = np.pi*2

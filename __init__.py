@@ -15,7 +15,7 @@ register(
 register(
      id='PivotingEnv-v0',
      entry_point='koopman_policy.envs:PivotingEnv',
-     max_episode_steps=100,
+     max_episode_steps=4000,
 )
 
 register(
