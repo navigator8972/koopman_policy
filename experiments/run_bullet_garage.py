@@ -283,7 +283,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
 import os
 import argparse
 import yaml
-
+import time
 
 
 CONFIG_PATH = './config'
@@ -305,18 +305,21 @@ def main(args):
     # seeds = [21, 52, 251, 521]
     # seeds = [251, 521]
     # seeds = [2, 12, 52, 125, 251]
+    policy_types = ['vanilla', 'koopman', 'koopman_residual']
 
     for seed in seeds: 
-        if config['rl_algo'] == 'sac':
-            koopmanlqr_sac_bullet_tests(seed=seed, policy_type='vanilla', config=config)
-            koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', config=config)
-            koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman_residual', config=config)
-        elif config['rl_algo'] == 'ppo':
-            # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='vanilla', config=config)
-            koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman', config=config)
-            koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman_residual', config=config)
-        else:
-            print('Unsupported RL algorithm.')
+        for policy_type in policy_types:
+        #build experiment name
+            timestr = time.strftime("%Y%m%d-%H%M%S")
+            log_dir = os.path.join('data/local/experiment', config['rl_algo'], '_{0}_{1}_seed{2}_{3}'.format(args.config, policy_type, seed, timestr))
+            ctxt = dict(log_dir=log_dir, snapshot_mode='last', archive_launch_repo=False, use_existing_dir=True)       
+
+            if config['rl_algo'] == 'sac':
+                koopmanlqr_sac_bullet_tests(seed=seed, policy_type=policy_type, config=config)
+            elif config['rl_algo'] == 'ppo':
+                koopmanlqr_ppo_bullet_tests(seed=seed, policy_type=policy_type, config=config)
+            else:
+                print('Unsupported RL algorithm.')
     #test the impact of time horizon
     #for seed in seeds:
         # for h in [2, 5, 8, 12, 15]:

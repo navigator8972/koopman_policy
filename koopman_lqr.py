@@ -387,9 +387,19 @@ class KoopmanLQR(nn.Module):
         #return:    (B,)
         K, k, V, v = self._retrieve_riccati_solution()
 
-        phi = self._phi(x0)
-        cost_to_go = (phi * batch_mv(V[0], phi)).sum(-1) - 2*(phi * v[0]).sum(-1)
+        g = self._phi(x0)
+        cost_to_go = (g * batch_mv(V[0], g)).sum(-1) - 2*(g * v[0]).sum(-1)
         return cost_to_go
+    
+    def forward_cost_ctrl_to_go(self, x0, u0):
+        #evaluate Bellman RHS c(x0, u0) + J(A phi(x0) + Bu0)
+        #similar to Q func in RL
+        K, k, V, v = self._retrieve_riccati_solution()
+        instaneous_cost = self.forward_quadratic_cost(x0, u0)
+        g = self._phi(x0)
+        g_pred = self.predict_koopman(g, u0)
+        cost_to_go = (g_pred * batch_mv(V[1], g_pred)).sum(-1) - 2*(g_pred * v[1]).sum(-1)
+        return instaneous_cost + cost_to_go
     
     def _koopman_fit_loss(self, x, x_next, u, ls_factor, target_tau=-1):
         g = self._phi(x)
@@ -405,7 +415,7 @@ class KoopmanLQR(nn.Module):
             self._phi_affine = nn.Parameter(A, requires_grad=False)
             self._u_affine = nn.Parameter(B, requires_grad=False)
         else:
-            g_pred = torch.matmul(g, self._phi_affine.transpose(0, 1))+torch.matmul(u, self._u_affine.transpose(0, 1))
+            g_pred = self.predict_koopman(g, u)
             loss = nn.MSELoss()
             fit_err = loss(g_pred, g_next)   
         

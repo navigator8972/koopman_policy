@@ -172,3 +172,36 @@ class KoopmanLQRRLParam():
         self._koopman_recons_coeff = koopman_recons_coeff
         self._koopman_target_update_tau_phi = koopman_target_update_tau_phi
         return
+    
+from garage.torch.value_functions import GaussianMLPValueFunction
+class GaussianKoopmanMLPValueFunction(GaussianMLPValueFunction):
+    def __init__(self, kpm_ctrl, **kwargs) -> None:
+        super().__init__(**kwargs)
+        
+        #not to build it from the scratch for possible sharing the same koopman system with the policy
+        self._kpm_ctrl = kpm_ctrl
+        return
+
+    def forward_koopman(self, obs):
+        #return value func/negative cost-to-go associated to the koopman system
+        return -self._kpm_ctrl.forward_cost_to_go(obs)
+    
+    def forward(self, obs):
+        nn_val = super().forward(obs)
+        koopman_val = self.forward_koopman(obs)
+        return nn_val + koopman_val
+
+from garage.torch.q_functions import ContinuousMLPQFunction
+class ContinuousKoopmanMLPQFunction(ContinuousMLPQFunction):
+    def __init__(self, kpm_ctrl, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._kpm_ctrl = kpm_ctrl
+        return
+    
+    def forward_koopman(self, obs, act):
+        return -self._kpm_ctrl.forward_cost_ctrl_to_go(obs, act)
+    
+    def forward(self, observations, actions):
+        nn_val = super().forward(observations, actions)
+        koopman_val = self.forward_koopman(observations, actions)
+        return nn_val + koopman_val
