@@ -17,7 +17,7 @@ from garage.torch.value_functions import GaussianMLPValueFunction
 from garage.trainer import Trainer
 
 import koopman_policy
-from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy, KoopmanLQRRLParam
+from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy, KoopmanLQRRLParam, GaussianKoopmanMLPValueFunction
 from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC
 from koopman_policy.koopmanlqr_ppo_garage import KoopmanLQRPPO
 
@@ -29,8 +29,13 @@ from garage.torch.algos import SAC
 from garage.torch.q_functions import ContinuousMLPQFunction
 from garage.torch.distributions import TanhNormal
 
-@wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
-def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy_horizon=None, config=None):
+@wrap_experiment
+def koopmanlqr_sac_bullet_tests(ctxt=None, config=None):
+    assert(config is not None)
+    seed = config['seed']
+    policy_type = config['policy_type']
+    policy_horizon = config['koopman_horizon']
+
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
 
@@ -154,21 +159,21 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     trainer.train(n_epochs=config['num_epochs'], batch_size=config['batch_size'], plot=False)
     return
 
-import akro
+@wrap_experiment
+def koopmanlqr_ppo_bullet_tests(ctxt=None, config=None):
+    assert(config is not None)
+    seed = config['seed']
+    policy_type = config['policy_type']
+    policy_horizon = config['koopman_horizon']
 
-@wrap_experiment(snapshot_mode='last', archive_launch_repo=False)
-def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy_horizon=None, config=None):
     set_seed(seed)
     trainer = Trainer(snapshot_config=ctxt)
-    assert(config is not None)
 
     env = normalize(BulletEnv(config['env_name']))
 
     # print(env.spec.observation_space)
     # print(env.spec.observation_space.flat_dim)
 
-    if policy_horizon is None:
-        policy_horizon = config['koopman_horizon']
 
     #need a separate seed for gym environment for full determinism
     env.seed(seed)
@@ -194,6 +199,11 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             koopman_recons_coeff=-1
         )
 
+        #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
+        value_function = GaussianMLPValueFunction(env_spec=env.spec,
+                                                hidden_sizes=(hidden_size, hidden_size),
+                                                hidden_nonlinearity=torch.tanh,
+                                                output_nonlinearity=None)
     else:
         in_dim = env.spec.observation_space.flat_dim
         out_dim = env.spec.action_space.flat_dim
@@ -231,13 +241,17 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
             )
 
         # koopman_param._koopman_recons_coeff = -1
-
+        value_function = GaussianMLPValueFunction(env_spec=env.spec,
+                                                hidden_sizes=(hidden_size, hidden_size),
+                                                hidden_nonlinearity=torch.tanh,
+                                                output_nonlinearity=None)
+        # value_function = GaussianKoopmanMLPValueFunction(kpm_ctrl=policy._kpm_ctrl, #shared or another kpm lqr
+        #                                         env_spec=env.spec,
+        #                                         hidden_sizes=(hidden_size, hidden_size),
+        #                                         hidden_nonlinearity=torch.tanh,
+        #                                         output_nonlinearity=None)
     #shared settings    
-    #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
-    value_function = GaussianMLPValueFunction(env_spec=env.spec,
-                                              hidden_sizes=(hidden_size, hidden_size),
-                                              hidden_nonlinearity=torch.tanh,
-                                              output_nonlinearity=None)
+
 
     sampler = MultiprocessingSampler(agents=policy,
                         envs=env,
@@ -276,15 +290,13 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, seed=1, policy_type='koopman', policy
     # algo.to()
     trainer.setup(algo, env)
     trainer.train(n_epochs=config['num_epochs'], batch_size=config['batch_size'], plot=False)   
-    # print(policy._kpm_ctrl._phi_affine, policy._kpm_ctrl._u_affine, policy._kpm_ctrl._q_diag_log, policy._kpm_ctrl._g_goal)
-    # print(torch.eig(policy._kpm_ctrl._phi_affine)[0])
     return
 
 import os
 import argparse
 import yaml
 import time
-
+import wandb
 
 CONFIG_PATH = './config'
 
@@ -292,49 +304,47 @@ def main(args):
     #load yaml configuration
     with open(os.path.join(CONFIG_PATH, args.config+'.yaml')) as file:
         config = yaml.safe_load(file)
-    
-    # if args.config in DEFORM_EXP_NAMES:
-    #     config['deform_env'] = True
-    #     dedo_args = dedo_get_args()[0]
-    #     dedo_args.task = args.config
-    #     config['deform_kwargs'] = {'version':0, 'args':dedo_args}
-    # else:
-    #     config['deform_env'] = False
-    
+
     seeds = [1, 21, 52, 251, 521]
     # seeds = [21, 52, 251, 521]
     # seeds = [251, 521]
     # seeds = [2, 12, 52, 125, 251]
-    policy_types = ['vanilla', 'koopman', 'koopman_residual']
-
-    for seed in seeds: 
+    # policy_types = ['vanilla', 'koopman', 'koopman_residual']
+    policy_types = ['koopman', 'koopman_residual']
+            
+    for seed in seeds:
+        config['seed'] = seed 
         for policy_type in policy_types:
-        #build experiment name
+            #update config params
+            config['policy_type'] = policy_type
+            
+            #build experiment name
             timestr = time.strftime("%Y%m%d-%H%M%S")
-            log_dir = os.path.join('data/local/experiment', config['rl_algo'], '_{0}_{1}_seed{2}_{3}'.format(args.config, policy_type, seed, timestr))
+            log_dir = os.path.join('data/local/experiment', '{0}_{1}_{2}_seed{3}_{4}'.format(config['rl_algo'], args.config, policy_type, seed, timestr))
+            
+            if args.use_wandb:
+                wandb.init(config=vars(args), project='koopman', name=log_dir)
+                wandb.config.update(config)
+                wandb.init(sync_tensorboard=False)
+                wandb.tensorboard.patch(tensorboardX=True, pytorch=True)
+
             ctxt = dict(log_dir=log_dir, snapshot_mode='last', archive_launch_repo=False, use_existing_dir=True)       
 
             if config['rl_algo'] == 'sac':
                 koopmanlqr_sac_bullet_tests(seed=seed, policy_type=policy_type, config=config)
             elif config['rl_algo'] == 'ppo':
-                koopmanlqr_ppo_bullet_tests(seed=seed, policy_type=policy_type, config=config)
+                koopmanlqr_ppo_bullet_tests(ctxt, config=config)
             else:
                 print('Unsupported RL algorithm.')
-    #test the impact of time horizon
-    #for seed in seeds:
-        # for h in [2, 5, 8, 12, 15]:
-            # koopmanlqr_sac_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
-            # koopmanlqr_ppo_bullet_tests(seed=seed, policy_type='koopman', policy_horizon=h)
-    #koopmanlqr_ppo_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
-    #koopmanlqr_sac_bullet_tests(seed=1, policy_type='koopman', policy_horizon=5)
 
 RIGID_EXP_NAMES = ['InvertedPendulumSwingup', 'InvertedPendulum', 'Block2D', 'HalfCheetah', 'Ant']
 DEFORM_EXP_NAMES = ['HangBag', 'HangCloth', 'Hoop']
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args', add_help=False)
     parser.add_argument('--config', type=str,
                         default='InvertedPendulumSwingup', help='Name of the config file', choices=RIGID_EXP_NAMES+DEFORM_EXP_NAMES)
+    parser.add_argument('--use_wandb', action='store_true',
+                        help='Whether to enable logging to wandb.ai')
     args, unknown = parser.parse_known_args()
     main(args)

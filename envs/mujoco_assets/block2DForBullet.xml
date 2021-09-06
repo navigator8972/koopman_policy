@@ -35,19 +35,14 @@
     </body>
 
   <body name="fl1" pos="0 0 0">
-      <!-- this is for bullet import, mujoco treat unspecified joint as fixed by default -->
       <joint name="fixedfl1" axis="1 0 0"  limited="true" pos="0 0 0" range="0 1.0" damping="1" type="fixed"/>
       <geom name="fl1" pos="0.4 0.05 0.05" rgba="0.3 0.5 0.6 1" type="box" size="0.05 0.1 0.05" contype="1" conaffinity="1" friction=".1 0.01 0.01" />
-<!--      <geom name="fl1" pos="0.4 0.055 0.05" rgba="0.3 0.5 0.6 1" type="box" size="0.05 0.1 0.05" contype="1" conaffinity="1" friction=".1 0.01 0.01" />-->
     </body>
   <body name="fl2" pos="0 0 0">
-    <!-- this is for bullet import, mujoco treat unspecified joint as fixed by default -->
     <joint name="fixedfl2" axis="1 0 0"  limited="true" pos="0 0 0" range="0 1.0" damping="1" type="fixed"/>
     <geom name="fl2" pos="0.4 -0.25 0.05" rgba="0.3 0.5 0.6 1" type="box" size="0.05 0.1 0.05" contype="1" conaffinity="1" friction=".1 0.01 0.01" />
-<!--      <geom name="fl2" pos="0.4 -0.255 0.05" rgba="0.3 0.5 0.6 1" type="box" size="0.05 0.1 0.05" contype="1" conaffinity="1" friction=".1 0.01 0.01" />-->
     </body>
     <body name="fl3" pos="0 0 0">
-      <!-- this is for bullet import, mujoco treat unspecified joint as fixed by default -->
       <joint name="fixedfl3" axis="1 0 0"  limited="true" pos="0 0 0" range="0 1.0" damping="1" type="fixed"/>
     <geom name="fl3" pos="0.5 -0.10 0.05" rgba="0.3 0.5 0.6 1" type="box" size="0.05 0.25 0.05" contype="1" conaffinity="1" friction=".1 0.01 0.01" />
     </body>
