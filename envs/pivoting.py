@@ -54,6 +54,9 @@ class PivotingEnv(gym.Env):
         self.dt = 1e-3      #time step for integration
         self.T = 4000       #number of steps
         self.ctrl_freq = 1 #internal integration steps
+        self.gripper_latency_timeout = int(0.5 / self.dt)
+        self.gripper_latency_tick = 0
+        self.gripper_latency_timeout_rand = 0
 
         self.phi_range = np.pi*2
 
@@ -136,12 +139,12 @@ class PivotingEnv(gym.Env):
                 next_state[1] = 0 
             next_state[0] = np.clip(next_state[0], -np.pi, np.pi)
 
-            #enforce action on finger distance, this may be subject to a dynamical process as well
-            next_state[4] = action[1]
-
             self.state = next_state
-
+            #enforce action on finger distance, this may be subject to a dynamical process as well
+            self.apply_grip_action(action[1])
+            
         self.t += 1
+        self.gripper_latency_tick += 1
 
         if self.t >= self.T:
             done = True
@@ -163,6 +166,8 @@ class PivotingEnv(gym.Env):
             )
         self.target = (self.np_random.uniform()-0.5)*2*np.radians(72)
         self.t = 0
+        self.gripper_latency_tick = 0
+        self.gripper_latency_timeout_rand = 0
         #we probably can randomize environment parameters here
         return self.get_obs()
     
@@ -170,6 +175,22 @@ class PivotingEnv(gym.Env):
         obs = np.copy(self.state)
         obs[0]-=self.target    
         return obs
+
+    def apply_grip_action(self, d):
+        #here simulate the latency of applying gripping actions
+        #this should be a nonblock call for ros action server
+        if self.gripper_latency_tick > self.gripper_latency_timeout + self.gripper_latency_timeout_rand:
+            #reset
+            self.gripper_latency_tick = 0
+            #we may also apply some randomness to the threshold for the next timeout
+            #apply the desired distance
+            self.state[4] = d
+        else:
+            #the command will be ignored if the action is blocked
+            pass
+        #we need to update this in the main step loop if apply_grip_action is not invoked at every step
+        # self.gripper_latency_tick += 1
+        return
 
     def render(self, mode="human"):
         """
@@ -235,6 +256,17 @@ class PivotingEnv(gym.Env):
             self.axle.set_color(0.5, 0.5, 0.8)
             self.axle.add_attr(base_trans)
             self.viewer.add_geom(self.axle)
+
+            #gripper pressure represented by a circle at axle
+            r = gripper_link_width/4
+            press_circle = rendering.make_circle(r)
+            press_circle._color.vec4=(0.8, 0.2, 0.2, 0.8)
+            self.press_circle_scale = rendering.Transform()
+            press_circle.add_attr(self.press_circle_scale)
+            press_circle.add_attr(rendering.Transform(translation=(gripper_link_length, 0)))
+            press_circle.add_attr(self.gripper_link_trans)
+            press_circle.add_attr(base_trans)
+            self.viewer.add_geom(press_circle)
         
 
         if self.state is None:
@@ -243,7 +275,10 @@ class PivotingEnv(gym.Env):
         self.gripper_link_trans.set_rotation(self.state[2])
         self.pole_trans.set_rotation(self.state[0])
         self.pole_link_target_trans.set_rotation(self.target)
-        
+        #set scale of press circle
+        s = 1.1-self.state[4] / float(self.d0) 
+        self.press_circle_scale.set_scale(s, s)
+
         return self.viewer.render(return_rgb_array=mode == "rgb_array")
 
     def close(self):
