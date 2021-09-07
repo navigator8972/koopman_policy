@@ -1,8 +1,8 @@
 env_name:     Block2DBulletEnv-v0
 rl_algo:      ppo
 hidden_size:  32
-num_epochs:   50
-batch_size:   12000
+num_epochs:   100
+batch_size:   3000
 
 koopman_size:                 4
 koopman_horizon:              5
@@ -12,5 +12,5 @@ koopman_fit_coeff_errbound:   -1
 koopman_fit_optim_lr:         -1
 koopman_fit_n_itrs:           -1
 koopman_fit_mat_reg_coeff:    -1
-koopman_recons_coeff:         -1
+koopman_recons_coeff:         1
 koopman_nonnn_lr:             -1 #0.01

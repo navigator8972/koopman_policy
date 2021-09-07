@@ -309,9 +309,10 @@ def main(args):
     # seeds = [21, 52, 251, 521]
     # seeds = [251, 521]
     # seeds = [2, 12, 52, 125, 251]
-    # policy_types = ['vanilla', 'koopman', 'koopman_residual']
-    policy_types = ['koopman', 'koopman_residual']
-            
+    policy_types = ['vanilla', 'koopman', 'koopman_residual']
+    # policy_types = ['koopman', 'koopman_residual']
+    wandb_tensorboard_patched = False
+
     for seed in seeds:
         config['seed'] = seed 
         for policy_type in policy_types:
@@ -322,11 +323,12 @@ def main(args):
             timestr = time.strftime("%Y%m%d-%H%M%S")
             log_dir = os.path.join('data/local/experiment', '{0}_{1}_{2}_seed{3}_{4}'.format(config['rl_algo'], args.config, policy_type, seed, timestr))
             
+            config.update(vars(args))
             if args.use_wandb:
-                wandb.init(config=vars(args), project='koopman', name=log_dir)
-                wandb.config.update(config)
-                wandb.init(sync_tensorboard=False)
-                wandb.tensorboard.patch(tensorboardX=True, pytorch=True)
+                wandb_run = wandb.init(config=config, project='koopman', name=log_dir, reinit=True, sync_tensorboard=False)
+                if not wandb_tensorboard_patched:
+                    wandb.tensorboard.patch(tensorboardX=True, pytorch=True)
+                    wandb_tensorboard_patched = True
 
             ctxt = dict(log_dir=log_dir, snapshot_mode='last', archive_launch_repo=False, use_existing_dir=True)       
 
@@ -336,6 +338,9 @@ def main(args):
                 koopmanlqr_ppo_bullet_tests(ctxt, config=config)
             else:
                 print('Unsupported RL algorithm.')
+            
+            if args.use_wandb:
+                wandb_run.finish()
 
 RIGID_EXP_NAMES = ['InvertedPendulumSwingup', 'InvertedPendulum', 'Block2D', 'HalfCheetah', 'Ant']
 DEFORM_EXP_NAMES = ['HangBag', 'HangCloth', 'Hoop']
