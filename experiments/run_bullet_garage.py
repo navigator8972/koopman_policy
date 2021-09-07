@@ -333,7 +333,7 @@ def main(args):
             ctxt = dict(log_dir=log_dir, snapshot_mode='last', archive_launch_repo=False, use_existing_dir=True)       
 
             if config['rl_algo'] == 'sac':
-                koopmanlqr_sac_bullet_tests(seed=seed, policy_type=policy_type, config=config)
+                koopmanlqr_sac_bullet_tests(ctxt, config=config)
             elif config['rl_algo'] == 'ppo':
                 koopmanlqr_ppo_bullet_tests(ctxt, config=config)
             else:
