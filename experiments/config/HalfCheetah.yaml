@@ -2,8 +2,8 @@ env_name:     HalfCheetahBulletEnv-v0
 rl_algo:      sac
 hidden_size:  256
 num_epochs:   1000
-batch_size:   5000
-max_episode_length_eval:    500
+batch_size:   1000
+max_episode_length_eval:    1000
 num_evaluation_episodes:    10
 
 koopman_size:                 4

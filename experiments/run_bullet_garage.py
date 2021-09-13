@@ -253,14 +253,14 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, config=None):
     #shared settings    
 
 
-    sampler = MultiprocessingSampler(agents=policy,
-                        envs=env,
-                        max_episode_length=env.spec.max_episode_length,
-                        worker_class=DefaultWorker)
-    # sampler = LocalSampler(agents=policy,
+    # sampler = MultiprocessingSampler(agents=policy,
     #                     envs=env,
     #                     max_episode_length=env.spec.max_episode_length,
     #                     worker_class=DefaultWorker)
+    sampler = LocalSampler(agents=policy,
+                        envs=env,
+                        max_episode_length=env.spec.max_episode_length,
+                        worker_class=DefaultWorker)
 
     if policy_type=='vanilla':
         algo = PPO(env_spec=env.spec,
@@ -308,7 +308,7 @@ def main(args):
     seeds = [1, 21, 52, 251, 521]
     # seeds = [21, 52, 251, 521]
     # seeds = [251, 521]
-    # seeds = [2, 12, 52, 125, 251]
+    # seeds = [2, 12, 51, 125, 512]
     policy_types = ['vanilla', 'koopman', 'koopman_residual']
     # policy_types = ['koopman', 'koopman_residual']
     wandb_tensorboard_patched = False

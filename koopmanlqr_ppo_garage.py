@@ -53,7 +53,7 @@ class KoopmanLQRPPO(PPO):
                 entropy_method)
 
         self._koopman_param = koopman_param
-        self._policy_lr = 2.5e-3   #default of garage PPO
+        self._policy_lr = 2.5e-4   #default of garage PPO
         nonnn_lr = koopman_param._koopman_nonnn_lr if koopman_param._koopman_nonnn_lr > 0 else self._policy_lr
 
         koopman_optim_params = [{'params': self.policy.get_koopman_params()},]
