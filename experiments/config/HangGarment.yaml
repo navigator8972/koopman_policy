@@ -1,15 +1,15 @@
-env_name:     HangClothBulletEnv-v0
+env_name:     HangGarmentBulletEnv-v1
 rl_algo:      ppo
 hidden_size:  32
 num_epochs:   50
 batch_size:   12000
-max_episode_length_eval:    400
+max_episode_length_eval:    200
 
 koopman_size:                 4
 koopman_horizon:              5
 
 least_square_fit_coeff:       -1
-koopman_fit_coeff:            1
+koopman_fit_coeff:            0.01
 koopman_fit_coeff_errbound:   -1
 koopman_fit_optim_lr:         -1
 koopman_fit_n_itrs:           -1

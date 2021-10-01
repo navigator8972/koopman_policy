@@ -403,7 +403,7 @@ def main(args):
                 wandb_run.finish()
 
 RIGID_EXP_NAMES = ['InvertedPendulumSwingup', 'InvertedPendulum', 'Block2D', 'HalfCheetah', 'Ant']
-DEFORM_EXP_NAMES = ['HangBag', 'HangCloth', 'Hoop']
+DEFORM_EXP_NAMES = ['HangGarment']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args', add_help=False)
