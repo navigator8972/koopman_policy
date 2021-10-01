@@ -17,7 +17,8 @@ from garage.torch.value_functions import GaussianMLPValueFunction
 from garage.trainer import Trainer
 
 import koopman_policy
-from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy, KoopmanLQRRLParam, GaussianKoopmanMLPValueFunction
+from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanLQRPolicy, KoopmanLQRRLParam
+from koopman_policy.koopmanlqr_policy_garage import GaussianKoopmanMLPValueFunction, ContinuousKoopmanMLPQFunction
 from koopman_policy.koopmanlqr_sac_garage import KoopmanLQRSAC
 from koopman_policy.koopmanlqr_ppo_garage import KoopmanLQRPPO
 
@@ -54,13 +55,50 @@ def koopmanlqr_sac_bullet_tests(ctxt=None, config=None):
     #original hidden size 256
     hidden_size = config['hidden_size']
 
-    qf1 = ContinuousMLPQFunction(env_spec=env.spec,
-                                 hidden_sizes=[hidden_size, hidden_size],
-                                 hidden_nonlinearity=torch.relu)
+    if config['valuefunc_type'] == 'koopman':
+        if policy_type != 'koopman':
+            k = 4
+            T = 5
+        else:
+            k = config['koopman_size']
+            T = policy_horizon
+        
+            #use default koopman policy param
+        koopman1 = GaussianKoopmanLQRPolicy(
+            env_spec=env.spec,
+            k=k,   #use the same size of koopmanv variable
+            T=T,
+            phi=[hidden_size, hidden_size],
+            residual=None,
+            normal_distribution_cls=TanhNormal,
+            init_std=1.0,
+            use_state_goal='latent')
+        koopman2 = GaussianKoopmanLQRPolicy(
+            env_spec=env.spec,
+            k=k,   #use the same size of koopmanv variable
+            T=T,
+            phi=[hidden_size, hidden_size],
+            residual=None,
+            normal_distribution_cls=TanhNormal,
+            init_std=1.0,
+            use_state_goal='latent')
+        
+        qf1 = ContinuousKoopmanMLPQFunction(koopman1._kpm_ctrl, 
+                                    env_spec=env.spec,
+                                    hidden_sizes=[hidden_size, hidden_size],
+                                    hidden_nonlinearity=torch.relu)
+        qf2 = ContinuousKoopmanMLPQFunction(koopman2._kpm_ctrl, 
+                            env_spec=env.spec,
+                            hidden_sizes=[hidden_size, hidden_size],
+                            hidden_nonlinearity=torch.relu)
+    else:
+        qf1 = ContinuousMLPQFunction(env_spec=env.spec,
+                                    hidden_sizes=[hidden_size, hidden_size],
+                                    hidden_nonlinearity=torch.relu)
 
-    qf2 = ContinuousMLPQFunction(env_spec=env.spec,
-                                 hidden_sizes=[hidden_size, hidden_size],
-                                 hidden_nonlinearity=torch.relu)
+        qf2 = ContinuousMLPQFunction(env_spec=env.spec,
+                                    hidden_sizes=[hidden_size, hidden_size],
+                                    hidden_nonlinearity=torch.relu)
 
     replay_buffer = PathBuffer(capacity_in_transitions=int(1e6))
 
@@ -200,10 +238,19 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, config=None):
         )
 
         #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
-        value_function = GaussianMLPValueFunction(env_spec=env.spec,
-                                                hidden_sizes=(hidden_size, hidden_size),
-                                                hidden_nonlinearity=torch.tanh,
-                                                output_nonlinearity=None)
+        if config['valuefunc_type'] == 'koopman':
+            #create a separate koopman control from a koopman_policy
+            koopman = GaussianKoopmanLQRPolicy(
+                    env_spec=env.spec,
+                    k=4,
+                    T=5,
+                    phi=[hidden_size, hidden_size],
+                    residual=None,
+                    init_std=1.0,
+                    use_state_goal='latent'
+                )
+            kpm_ctrl = koopman._kpm_ctrl
+        
     else:
         in_dim = env.spec.observation_space.flat_dim
         out_dim = env.spec.action_space.flat_dim
@@ -241,17 +288,25 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, config=None):
             )
 
         # koopman_param._koopman_recons_coeff = -1
+        if config['valuefunc_type'] == 'koopman':
+            #use the same or should be a separaed one as sac?
+            #i feel this might be to reusable because it gives chance to improve policy in value learning as well
+            kpm_ctrl = policy._kpm_ctrl
+
+    #shared settings
+    if config['valuefunc_type'] == 'vanilla':
+        print('Using Vanilla Function')    
         value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                                 hidden_sizes=(hidden_size, hidden_size),
                                                 hidden_nonlinearity=torch.tanh,
                                                 output_nonlinearity=None)
-        # value_function = GaussianKoopmanMLPValueFunction(kpm_ctrl=policy._kpm_ctrl, #shared or another kpm lqr
-        #                                         env_spec=env.spec,
-        #                                         hidden_sizes=(hidden_size, hidden_size),
-        #                                         hidden_nonlinearity=torch.tanh,
-        #                                         output_nonlinearity=None)
-    #shared settings    
-
+    else:
+        print('Using Koopman Value Function')
+        value_function = GaussianKoopmanMLPValueFunction(kpm_ctrl=kpm_ctrl, #shared or another kpm lqr
+                                                env_spec=env.spec,
+                                                hidden_sizes=(hidden_size, hidden_size),
+                                                hidden_nonlinearity=torch.tanh,
+                                                output_nonlinearity=None)
 
     # sampler = MultiprocessingSampler(agents=policy,
     #                     envs=env,
@@ -292,6 +347,7 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, config=None):
     trainer.train(n_epochs=config['num_epochs'], batch_size=config['batch_size'], plot=False)   
     return
 
+import itertools
 import os
 import argparse
 import yaml
@@ -311,13 +367,17 @@ def main(args):
     # seeds = [2, 12, 51, 125, 512]
     policy_types = ['vanilla', 'koopman', 'koopman_residual']
     # policy_types = ['koopman', 'koopman_residual']
+    policy_types = ['vanilla']
+
+    valfunc_types = ['koopman']
     wandb_tensorboard_patched = False
 
     for seed in seeds:
         config['seed'] = seed 
-        for policy_type in policy_types:
+        for policy_type, valfunc_type in itertools.product(policy_types, valfunc_types):
             #update config params
             config['policy_type'] = policy_type
+            config['valuefunc_type'] = valfunc_type
             
             #build experiment name
             timestr = time.strftime("%Y%m%d-%H%M%S")

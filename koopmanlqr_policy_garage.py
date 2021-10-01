@@ -204,4 +204,6 @@ class ContinuousKoopmanMLPQFunction(ContinuousMLPQFunction):
     def forward(self, observations, actions):
         nn_val = super().forward(observations, actions)
         koopman_val = self.forward_koopman(observations, actions)
-        return nn_val + koopman_val
+        #note this is different from value func that will be called by ppo and fed (B, T, dx) and returned vals are (B, T)
+        #here nn_val will return (B, 1) while koopman returns (B,)
+        return nn_val + koopman_val.unsqueeze(-1)
