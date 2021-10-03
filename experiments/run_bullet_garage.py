@@ -361,15 +361,17 @@ def main(args):
     with open(os.path.join(CONFIG_PATH, args.config+'.yaml')) as file:
         config = yaml.safe_load(file)
 
-    seeds = [1, 21, 52, 251, 521]
+    # seeds = [1, 21, 52, 251, 521]
     # seeds = [21, 52, 251, 521]
     # seeds = [251, 521]
     # seeds = [2, 12, 51, 125, 512]
+
+    seeds = [1]
     policy_types = ['vanilla', 'koopman', 'koopman_residual']
     # policy_types = ['koopman', 'koopman_residual']
-    policy_types = ['vanilla']
+    # policy_types = ['vanilla']
 
-    valfunc_types = ['koopman']
+    valfunc_types = ['vanilla']
     wandb_tensorboard_patched = False
 
     for seed in seeds:
@@ -403,7 +405,7 @@ def main(args):
                 wandb_run.finish()
 
 RIGID_EXP_NAMES = ['InvertedPendulumSwingup', 'InvertedPendulum', 'Block2D', 'HalfCheetah', 'Ant']
-DEFORM_EXP_NAMES = ['HangGarment']
+DEFORM_EXP_NAMES = ['HangGarment', 'Button']
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='args', add_help=False)

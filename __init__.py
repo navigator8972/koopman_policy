@@ -19,34 +19,17 @@ register(
 )
 
 register(
-     id='HangBagBulletEnv-v0',
-     entry_point='koopman_policy.envs:HangBagBulletEnv',
+     id='HangGarmentBulletEnv-v1',
+     entry_point='koopman_policy.envs:HangGarmentBulletEnv',
      max_episode_steps=400,
 )
 
 register(
-     id='HangClothBulletEnv-v0',
-     entry_point='koopman_policy.envs:HangClothBulletEnv',
-     max_episode_steps=400,
-)
-
-register(
-     id='ButtonSimpleBulletEnv-v0',
+     id='ButtonSimpleBulletEnv-v1',
      entry_point='koopman_policy.envs:ButtonSimpleBulletEnv',
      max_episode_steps=400,
 )
 
-register(
-     id='HoopBulletEnv-v0',
-     entry_point='koopman_policy.envs:HoopBulletEnv',
-     max_episode_steps=400,
-)
-
-register(
-     id='LassoBulletEnv-v0',
-     entry_point='koopman_policy.envs:LassoBulletEnv',
-     max_episode_steps=400,
-)
 
 # register(
 #      id='YumiPeg-v0',

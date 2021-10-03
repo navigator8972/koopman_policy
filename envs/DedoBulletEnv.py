@@ -11,9 +11,12 @@ from dedo.envs.deform_env import DeformEnv
 class DeformBulletEnv(DeformEnv):
     def __init__(self, render=False):
         dedo_args = dedo_get_args()
+        dedo_args.robot = 'anchor'
         dedo_args.task = self.get_task_name()
         dedo_args.viz = render
         dedo_args.debug = False
+        dedo_args.cam_resolution = -1
+        dedo_args.version = 1
         
         super().__init__(args=dedo_args)
         #extend observation space with feature vertices
@@ -34,19 +37,28 @@ class DeformBulletEnv(DeformEnv):
         #     _, vertex_positions = get_mesh_data(self.sim, self.deform_id)
         #     feat_pos = np.concatenate([vertex_positions[v] for v in self.args.deform_true_loop_vertices[0]])
         #     obs = np.concatenate([obs, feat_pos])
-        return obs, done
+        return np.array(obs, dtype='f'), done
+    
+    def step(self, action):
+        next_obs, reward, done, info = super().step(action, unscaled=False)
+        if not 'is_success' in info:
+            #complete info for consistent return
+            info['is_success'] = False
+            info['final_reward'] = 0
+        
+        return next_obs, reward, done, info
 
 class HangBagBulletEnv(DeformBulletEnv):
     def get_task_name(self):
         return 'HangBag'
 
-class HangClothBulletEnv(DeformBulletEnv):
+class HangGarmentBulletEnv(DeformBulletEnv):
     def get_task_name(self):
-        return 'HangCloth'
+        return 'HangGarment'
 
 class ButtonSimpleBulletEnv(DeformBulletEnv):
     def get_task_name(self):
-        return 'ButtonSimple'
+        return 'Button'
 
 class HoopBulletEnv(DeformBulletEnv):
     def get_task_name(self):

@@ -1,9 +1,9 @@
-env_name:     HangBagBulletEnv-v0
+env_name:     ButtonSimpleBulletEnv-v1
 rl_algo:      ppo
 hidden_size:  32
 num_epochs:   50
 batch_size:   12000
-max_episode_length_eval:    400
+max_episode_length_eval:    200
 
 koopman_size:                 4
 koopman_horizon:              5

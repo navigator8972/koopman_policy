@@ -6,4 +6,4 @@ from koopman_policy.envs.yumipeg_bullet import YumiPegBulletEnv
 
 from koopman_policy.envs.pivoting import PivotingEnv
 
-from koopman_policy.envs.DedoBulletEnv import HangBagBulletEnv, HangClothBulletEnv, ButtonSimpleBulletEnv, HoopBulletEnv, LassoBulletEnv
+from koopman_policy.envs.DedoBulletEnv import HangGarmentBulletEnv, ButtonSimpleBulletEnv, HoopBulletEnv, LassoBulletEnv
