@@ -82,12 +82,12 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
         #policy.set_state_goal_learnable(state_goal=None, learnable=False)
         koopman_param = KoopmanLQRRLParam(
                 least_square_fit_coeff=-1,    #use least square
-                koopman_fit_coeff=1,
+                koopman_fit_coeff=0.01,
                 koopman_fit_coeff_errbound=-1,
                 koopman_fit_optim_lr=-1,
                 koopman_fit_n_itrs=-1,
                 koopman_fit_mat_reg_coeff=-1,
-                koopman_recons_coeff=1,
+                koopman_recons_coeff=-1,
                 koopman_nonnn_lr=0.01
             )
 
@@ -97,7 +97,7 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
     #need a separate hiddenzie for MLP because of the experience of using linearly parameterized approximator
     value_function = GaussianMLPValueFunction(env_spec=env.spec,
                                               hidden_sizes=(hidden_size, hidden_size),
-                                              hidden_nonlinearity=F.relu,
+                                              hidden_nonlinearity=torch.relu,
                                               output_nonlinearity=None)
 
     sampler = MultiprocessingSampler(agents=policy,
@@ -132,7 +132,7 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
     #     set_gpu_mode(False)
     # algo.to()
     trainer.setup(algo, env)
-    trainer.train(n_epochs=20, batch_size=40000, plot=True)
+    trainer.train(n_epochs=100, batch_size=20000, plot=True)
     return
 
 
@@ -141,8 +141,8 @@ def main():
     seeds = [1]
     for seed in seeds:
         koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='vanilla')
-        koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman')
-        koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman_residual')
+        # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman')
+        # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman_residual')
 
 
 if __name__ == '__main__':

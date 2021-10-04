@@ -48,13 +48,15 @@ class PivotingEnv(gym.Env):
         self.d0 = 0.0175    #rest distance bewteen two finger tips
         self.l = 0.35       #distance between gripper actuated joint and pivoting point, a setup suitable for baxter
 
-        self.mu_v = 0.066   #viscosity friction coefficient
+        self.mu_v = 0.0066 #0.066   #viscosity friction coefficient
         self.kmu_c = 9.906  #Coulomb friction coefficient
+        self.epsilon = 1e-2 #threshold of switching between sticking and sliping. adhoc value, not specified in the paper
+        self.kgamma = 16    #static friction coeff together with deform stiffness. adhoc value, not specified in the paper
 
-        self.dt = 1e-3      #time step for integration
-        self.T = 4000       #number of steps
+        self.dt = 1e-2     #time step for integration
+        self.T = 400       #number of steps
         self.ctrl_freq = 1 #internal integration steps
-        self.gripper_latency_timeout = int(0.5 / self.dt)
+        self.gripper_latency_timeout = int(0.05 / (self.dt*self.ctrl_freq))
         self.gripper_latency_tick = 0
         self.gripper_latency_timeout_rand = 0
 
@@ -111,6 +113,9 @@ class PivotingEnv(gym.Env):
         tau = -mu_v*tilt_vel - kmu_c*(d0-d)*sgn(tilt_vel)
         f_n = k(d0-d)
         """
+        #constrain permitted acceleration
+        action[0] = np.clip(action[0], -10, 10)
+        # action[1] = self.d0 # force a grip to test motion
         
         # common values
         I_plus_mrsquare = self.I + self.mass*self.r ** 2
@@ -127,8 +132,14 @@ class PivotingEnv(gym.Env):
             next_state[2] = np.clip(next_state[2], -np.pi/2, np.pi/2)
             
             #now integrate pole dynamics
-            #normal force
-            tau = -self.mu_v*self.state[1]-self.kmu_c*(self.d0-self.state[4])*np.sign(self.state[1])
+            if np.abs(self.state[1]) < self.epsilon:
+                #sticking when the relative velocity is close to zero
+                tau = mgr*np.cos(self.state[0]+self.state[2]) - mlr*np.sin(self.state[0])*self.state[3] - (I_plus_mrsquare + mlr*np.cos(self.state[0]))*action[0]
+                tau = np.clip(tau, -self.kgamma*(self.d0-self.state[4]), self.kgamma*(self.d0-self.state[4]))
+            else:
+                #sliping when the relative velocity is non-zero 
+                tau = -self.mu_v*self.state[1]-self.kmu_c*(self.d0-self.state[4])*np.sign(self.state[1])
+
             acc = tau - mgr*np.cos(self.state[0]+self.state[2]) - mlr*np.sin(self.state[0])*self.state[3] - (I_plus_mrsquare + mlr*np.cos(self.state[0]))*action[0]
             acc = acc / I_plus_mrsquare
 
@@ -141,6 +152,7 @@ class PivotingEnv(gym.Env):
 
             self.state = next_state
             #enforce action on finger distance, this may be subject to a dynamical process as well
+            
             self.apply_grip_action(action[1])
             
         self.t += 1
@@ -152,14 +164,14 @@ class PivotingEnv(gym.Env):
             done = False
         
         reward = -np.abs(self.state[0]-self.target)/self.phi_range
-        if np.abs(self.state[0]-self.target) < np.radians(3) and np.abs(self.state[1]) < 0.1:
+        if np.abs(self.state[0]-self.target) < np.radians(3): # and np.abs(self.state[1]) < 0.1:
             #reach the goal region +-3 deg and almost static, bonus reward
             reward += 1
         return self.get_obs(), reward, done, {}
     
     def reset(self):
         self.state = np.array([(self.np_random.uniform()-0.5)*2*np.radians(72), #angular pos of pole
-            0,  #angular velocity of pole 
+            0,  # angular velocity of pole 
             0,  # gripper angular position
             0,  # gripper angular velocity 
             self.d0]    #finger tips distance
