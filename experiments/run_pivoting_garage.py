@@ -87,7 +87,7 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
                 koopman_fit_optim_lr=-1,
                 koopman_fit_n_itrs=-1,
                 koopman_fit_mat_reg_coeff=-1,
-                koopman_recons_coeff=-1,
+                koopman_recons_coeff=1,
                 koopman_nonnn_lr=0.01
             )
 
@@ -132,7 +132,7 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
     #     set_gpu_mode(False)
     # algo.to()
     trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=20000, plot=True)
+    trainer.train(n_epochs=100, batch_size=20000, plot=False)
     return
 
 
@@ -140,9 +140,9 @@ def main():
     #seeds = [1, 21, 52, 251, 521]
     seeds = [1]
     for seed in seeds:
-        koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='vanilla')
+        # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='vanilla')
         # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman')
-        # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman_residual')
+        koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman_residual')
 
 
 if __name__ == '__main__':
