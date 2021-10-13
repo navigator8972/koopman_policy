@@ -49,14 +49,15 @@ class PivotingEnv(gym.Env):
         self.l = 0.35       #distance between gripper actuated joint and pivoting point, a setup suitable for baxter
 
         self.mu_v = 0.0066 #0.066   #viscosity friction coefficient
-        self.kmu_c = 9.906  #Coulomb friction coefficient
+        self.kmu_c_mean = 9.906  #Coulomb friction coefficient
+        self.kmu_c = self.kmu_c_mean
         self.epsilon = 1e-2 #threshold of switching between sticking and sliping. adhoc value, not specified in the paper
         self.kgamma = 16    #static friction coeff together with deform stiffness. adhoc value, not specified in the paper
 
         self.dt = 1e-2     #time step for integration
         self.T = 400       #number of steps
         self.ctrl_freq = 1 #internal integration steps
-        self.gripper_latency_timeout = int(0.05 / (self.dt*self.ctrl_freq))
+        self.gripper_latency_timeout = int(0.5 / (self.dt*self.ctrl_freq))
         self.gripper_latency_tick = 0
         self.gripper_latency_timeout_rand = 0
 
@@ -181,12 +182,14 @@ class PivotingEnv(gym.Env):
         self.gripper_latency_tick = 0
         self.gripper_latency_timeout_rand = 0
         #we probably can randomize environment parameters here
+        self.kmu_c = self.kmu_c_mean * (np.random.rand()*0.2+0.9)
+        self.gripper_latency_timeout_rand = int(self.gripper_latency_timeout * (np.random.rand()*0.2-0.1))
         return self.get_obs()
     
     def get_obs(self):
         obs = np.copy(self.state)
         obs[0]-=self.target    
-        return obs
+        return np.array(obs, dtype='f')
 
     def apply_grip_action(self, d):
         #here simulate the latency of applying gripping actions

@@ -368,7 +368,7 @@ def main(args):
 
     seeds = [1]
     policy_types = ['vanilla', 'koopman', 'koopman_residual']
-    # policy_types = ['koopman', 'koopman_residual']
+    policy_types = ['koopman', 'koopman_residual']
     # policy_types = ['vanilla']
 
     valfunc_types = ['vanilla']
