@@ -6,6 +6,7 @@ import gym
 from dedo.utils.mesh_utils import get_mesh_data
 from dedo.utils.args import get_args as dedo_get_args
 from dedo.envs.deform_env import DeformEnv
+from dedo.utils.anchor_utils import command_anchor_velocity
 
 #virtual wrapper class for all dedo environments
 class DeformBulletEnv(DeformEnv):
@@ -17,6 +18,9 @@ class DeformBulletEnv(DeformEnv):
         dedo_args.debug = False
         dedo_args.cam_resolution = -1
         dedo_args.version = 1
+        #this is a flag to indicate if the environment is used for visualization
+        #this will not be touched for regular training and will only be manually switched on in visualization
+        self.viz_mode = 0
         
         super().__init__(args=dedo_args)
         #extend observation space with feature vertices
@@ -40,11 +44,55 @@ class DeformBulletEnv(DeformEnv):
         return np.array(obs, dtype='f'), done
     
     def step(self, action):
-        next_obs, reward, done, info = super().step(action, unscaled=False)
+        if self.viz_mode:
+            next_obs, reward, done, info = self.step_without_after_done(action, unscaled=False)
+        else:
+            next_obs, reward, done, info = super().step(action, unscaled=False)
         if not 'is_success' in info:
             #complete info for consistent return
             info['is_success'] = False
             info['final_reward'] = 0
+        
+        return next_obs, reward, done, info
+    
+    def step_without_after_done(self, action, unscaled=False):
+        #overrided step without doing done stepSimulation
+        #this is used to separate afterdone steps for visualization
+                # action is num_anchors x 3 for 3D velocity for anchors/grippers;
+        # assume action in [-1,1], we convert to [-MAX_ACT_VEL, MAX_ACT_VEL].
+
+        if self.args.debug:
+            print('action', action)
+        if not unscaled:
+            assert self.action_space.contains(action)
+            assert ((np.abs(action) <= 1.0).all()), 'action must be in [-1, 1]'
+            if self.robot is None:  # velocity control for anchors
+                action *= DeformEnv.MAX_ACT_VEL
+            else:
+                action *= DeformEnv.WORKSPACE_BOX_SIZE  # pos control for robots
+        action = action.reshape(self.num_anchors, -1)
+
+        # Step through physics simulation.
+        raw_force_accum = 0.0
+        for sim_step in range(self.args.sim_steps_per_action):
+            for i in range(self.num_anchors):
+                if self.args.robot == 'anchor':
+                    curr_force = command_anchor_velocity(
+                        self.sim, self.anchor_ids[i], action[i])
+                    raw_force_accum += np.linalg.norm(curr_force)
+            if self.args.robot != 'anchor':  # robot Cartesian position control
+                self.do_robot_action(action)
+            self.sim.stepSimulation()
+        # Get next obs, reward, done.
+        next_obs, done = self.get_obs()
+        reward = self.get_reward()
+        if done:  # if terminating early use reward from current step for rest
+            reward *= (self.max_episode_len - self.stepnum)
+        done = (done or self.stepnum >= self.max_episode_len)
+        info = {}
+
+        self.episode_reward += reward  # update episode reward
+        self.stepnum += 1
         
         return next_obs, reward, done, info
 

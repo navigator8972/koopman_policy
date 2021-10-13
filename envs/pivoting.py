@@ -115,7 +115,7 @@ class PivotingEnv(gym.Env):
         """
         #constrain permitted acceleration
         action[0] = np.clip(action[0], -10, 10)
-        # action[1] = self.d0 # force a grip to test motion
+        action[1] = self.d0 # force a grip to test motion
         
         # common values
         I_plus_mrsquare = self.I + self.mass*self.r ** 2

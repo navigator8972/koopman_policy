@@ -89,13 +89,20 @@ def rollout(env,
     img_size_softgym = 720
     
     image_array = []    
-    while episode_length < (max_episode_length or np.inf):
+
+    if hasattr(env._env._env, 'STEPS_AFTER_DONE'):
+        #override internal after done steps
+        max_num_steps = env._env._env.max_episode_len
+    else:
+        max_num_steps = max_episode_length
+
+    while episode_length < (max_num_steps or np.inf):
         if not is_softgym:
             #use nested env directly. some may not implement render_modes() function
             img = env._env._env.render(mode='rgb_array')
             image_array.append(img)
 
-        if pause_per_frame is not None:
+        if pause_per_frame is not None and animated:
             time.sleep(pause_per_frame)
         a, agent_info = agent.get_action(last_obs)
         if deterministic and 'mean' in agent_info:
@@ -112,7 +119,10 @@ def rollout(env,
         observations.append(last_obs)
         agent_infos.append(agent_info)
         episode_length += 1
-    
+
+        # print(env._env._step_cnt)
+        # print(es.last)
+
         if not is_softgym:
             if es.last:
                 break
@@ -122,6 +132,29 @@ def rollout(env,
                 break
             last_obs = es['observation']
         
+
+    # print(env._env._env)
+    if hasattr(env._env._env, 'STEPS_AFTER_DONE'):
+        #do the last action and
+        #do steps after done for dedo envs
+        #this allows us to record after done images
+        env._env._env.env.viz_mode = 1
+        img = env._env._env.render(mode='rgb_array')
+        image_array.append(img)
+        env._env._step_cnt = max_num_steps
+        a, agent_info = agent.get_action(last_obs)
+        if deterministic and 'mean' in agent_info:
+            a = agent_info['mean']
+        
+        es = env.step(a) 
+
+        for _ in range(env._env._env.STEPS_AFTER_DONE):
+            img = env._env._env.render(mode='rgb_array')
+            image_array.append(img)
+            env._env._env.sim.stepSimulation()
+            if pause_per_frame is not None and animated:
+                time.sleep(pause_per_frame)
+
     
     if video_name is not None:
         save_numpy_to_video_matplotlib(image_array, video_name, interval=pause_per_frame*1000)

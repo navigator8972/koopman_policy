@@ -27,7 +27,7 @@ register(
 register(
      id='ButtonSimpleBulletEnv-v1',
      entry_point='koopman_policy.envs:ButtonSimpleBulletEnv',
-     max_episode_steps=400,
+     max_episode_steps=200,
 )
 
 

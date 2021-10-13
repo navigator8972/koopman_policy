@@ -140,8 +140,8 @@ def main():
     #seeds = [1, 21, 52, 251, 521]
     seeds = [1]
     for seed in seeds:
-        koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='vanilla')
-        # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman')
+        # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='vanilla')
+        koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman')
         # koopmanlqr_ppo_pivoting_tests(seed=seed, policy_type='koopman_residual')
 
 
