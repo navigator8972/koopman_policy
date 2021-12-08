@@ -45,29 +45,39 @@ class PivotingEnv(gym.Env):
         self.mass = 0.03    #mass of pole kg
         self.I = 9e-5       #inertia tensor of pole kg m^2
         self.r = 0.095      #distance between pivoting point and COG of pole
-        self.d0 = 0.0175    #rest distance bewteen two finger tips
+        self.d0 = 0.021     #rest distance bewteen two finger tips
+        self.d0_lb = 0.017
         self.l = 0.35       #distance between gripper actuated joint and pivoting point, a setup suitable for baxter
 
-        self.mu_v = 0.0066 #0.066   #viscosity friction coefficient
-        self.kmu_c_mean = 9.906  #Coulomb friction coefficient
+        self.mu_v = 0.066*0.05 #0.066   #viscosity friction coefficient
+        self.kmu_c_mean = 9.906*0.05  #Coulomb friction coefficient
         self.kmu_c = self.kmu_c_mean
-        self.epsilon = 1e-2 #threshold of switching between sticking and sliping. adhoc value, not specified in the paper
+        self.epsilon = 5e-2 #threshold of switching between sticking and sliping. adhoc value, not specified in the paper
         self.kgamma = 16    #static friction coeff together with deform stiffness. adhoc value, not specified in the paper
 
         self.dt = 1e-2     #time step for integration
-        self.T = 400       #number of steps
+        self.T = 1000       #number of steps
         self.ctrl_freq = 1 #internal integration steps
         self.gripper_latency_timeout = int(0.5 / (self.dt*self.ctrl_freq))
         self.gripper_latency_tick = 0
         self.gripper_latency_timeout_rand = 0
+        self.pending_gripper_cmd = None
+
+        self.obs_sample_timeout = 3
+        self.obs_sample_tick = 0
+        self.obs_curr = None
+
+        #self.obs_gripper_offset = 0 #1.75
 
         self.phi_range = np.pi*2
+        self.gripper_range = np.pi * 7 / 9.
+        self.acc_limit = 18
 
         obs_high = np.array(
             [
                 np.pi,
                 np.finfo(np.float32).max,
-                np.pi/2,
+                self.gripper_range/2, #+ self.obs_gripper_offset,
                 np.finfo(np.float32).max,
                 self.d0
             ]
@@ -77,23 +87,23 @@ class PivotingEnv(gym.Env):
             [
                 -np.pi,
                 np.finfo(np.float32).min,
-                -np.pi/2,
+                -self.gripper_range/2, #+ self.obs_gripper_offset,
                 np.finfo(np.float32).min,
-                0
+                self.d0_lb
             ]
         )
 
         act_high = np.array(
             [
-                1000,       
+                self.acc_limit,       
                 self.d0                         #not realistic as there is always delay to command the desired finger distance
             ]
         )
 
         act_low = np.array(
             [
-                -1000,
-                0
+                -self.acc_limit,
+                self.d0_lb
             ]
         )
         self.observation_space = spaces.Box(obs_low, obs_high, dtype=np.float32)
@@ -115,8 +125,8 @@ class PivotingEnv(gym.Env):
         f_n = k(d0-d)
         """
         #constrain permitted acceleration
-        action[0] = np.clip(action[0], -10, 10)
-        action[1] = self.d0 # force a grip to test motion
+        action[0] = np.clip(action[0], -self.acc_limit, self.acc_limit)
+        # action[1] = self.d0 # force a grip to test motion
         
         # common values
         I_plus_mrsquare = self.I + self.mass*self.r ** 2
@@ -126,22 +136,36 @@ class PivotingEnv(gym.Env):
         for _ in range(self.ctrl_freq):
             next_state = np.copy(self.state)
             #first lets integrate gripper kinematics, using semi-implicit euler
-            next_state[3] += action[0]*self.dt
+            #lets apply a velocity constraint for the consistency with real robot
+            if np.abs(next_state[3]) > 2.1:
+                acc_action = 0
+            else:
+                acc_action = action[0]
+            next_state[3] += acc_action*self.dt
             next_state[2] += next_state[3]*self.dt
-            if next_state[2] < -np.pi/2 or next_state[2] > np.pi/2:
-                next_state[3] = 0 
-            next_state[2] = np.clip(next_state[2], -np.pi/2, np.pi/2)
             
+            if next_state[2] < -self.gripper_range/2 or next_state[2] > self.gripper_range/2:
+                absolute_pivot_ang_vel = next_state[3] + next_state[1]
+                next_state[3] = 0 
+                next_state[1] = absolute_pivot_ang_vel
+                
+            next_state[2] = np.clip(next_state[2], -self.gripper_range/2, self.gripper_range/2)
+            
+            cmd_dist = self.state[4]
+
             #now integrate pole dynamics
-            if np.abs(self.state[1]) < self.epsilon:
+            if np.abs(self.state[1]) < self.epsilon or self.state[4] < 0.0185:
                 #sticking when the relative velocity is close to zero
-                tau = mgr*np.cos(self.state[0]+self.state[2]) - mlr*np.sin(self.state[0])*self.state[3] - (I_plus_mrsquare + mlr*np.cos(self.state[0]))*action[0]
-                tau = np.clip(tau, -self.kgamma*(self.d0-self.state[4]), self.kgamma*(self.d0-self.state[4]))
+                tau = mgr*np.cos(self.state[0]+self.state[2]) + mlr*np.sin(self.state[0])*self.state[3]**2 + (I_plus_mrsquare + mlr*np.cos(self.state[0]))*action[0]
+                if self.state[4] >= 0.0185:
+                    tau = np.clip(tau, -self.kgamma*(self.d0-cmd_dist), self.kgamma*(self.d0-cmd_dist))
+                else:
+                    next_state[1] = 0
             else:
                 #sliping when the relative velocity is non-zero 
-                tau = -self.mu_v*self.state[1]-self.kmu_c*(self.d0-self.state[4])*np.sign(self.state[1])
+                tau = -self.mu_v*self.state[1]-self.kmu_c*(self.d0-cmd_dist)*np.sign(self.state[1])
 
-            acc = tau - mgr*np.cos(self.state[0]+self.state[2]) - mlr*np.sin(self.state[0])*self.state[3] - (I_plus_mrsquare + mlr*np.cos(self.state[0]))*action[0]
+            acc = tau - mgr*np.cos(self.state[0]+self.state[2]) - mlr*np.sin(self.state[0])*self.state[3]**2 - (I_plus_mrsquare + mlr*np.cos(self.state[0]))*action[0]
             acc = acc / I_plus_mrsquare
 
             next_state[1] += acc*self.dt
@@ -153,11 +177,13 @@ class PivotingEnv(gym.Env):
 
             self.state = next_state
             #enforce action on finger distance, this may be subject to a dynamical process as well
-            
+
             self.apply_grip_action(action[1])
             
         self.t += 1
-        self.gripper_latency_tick += 1
+        if self.pending_gripper_cmd is not None:
+            self.gripper_latency_tick += 1
+        self.obs_sample_tick+=1
 
         if self.t >= self.T:
             done = True
@@ -165,41 +191,73 @@ class PivotingEnv(gym.Env):
             done = False
         
         reward = -np.abs(self.state[0]-self.target)/self.phi_range
+
+        #constraint penalty
+        #avoid gripper going towards position limit
+        #const_penalty = np.exp(2*(max(np.abs(next_state[2]) - self.gripper_range/2*0.8, 0) / (self.gripper_range/2*0.2) - 1))
+        #avoid gripper moves close to the upperbound of velocity
+        # const_penalty = 0.1*self.state[3]**2
+        # reward -= const_penalty
+        
         if np.abs(self.state[0]-self.target) < np.radians(3): # and np.abs(self.state[1]) < 0.1:
             #reach the goal region +-3 deg and almost static, bonus reward
             reward += 1
         return self.get_obs(), reward, done, {}
     
     def reset(self):
-        self.state = np.array([(self.np_random.uniform()-0.5)*2*np.radians(72), #angular pos of pole
+        self.state = np.array([#self.np_random.uniform()*np.radians(72),    #for the problematic half
+            (self.np_random.uniform()-0.5)*2*np.radians(72), #angular pos of pole
             0,  # angular velocity of pole 
-            0,  # gripper angular position
+            0,  #(self.np_random.uniform()-0.5)*2*np.radians(85),  # gripper angular position
             0,  # gripper angular velocity 
             self.d0]    #finger tips distance
             )
-        self.target = (self.np_random.uniform()-0.5)*2*np.radians(72)
+        self.target = 0 #(self.np_random.uniform()-0.5)*2*np.radians(72)
         self.t = 0
         self.gripper_latency_tick = 0
         self.gripper_latency_timeout_rand = 0
         #we probably can randomize environment parameters here
         self.kmu_c = self.kmu_c_mean * (np.random.rand()*0.2+0.9)
-        self.gripper_latency_timeout_rand = int(self.gripper_latency_timeout * (np.random.rand()*0.2-0.1))
+        self.gripper_latency_timeout_rand = int(self.gripper_latency_timeout * (np.random.rand()-0.3))
+        self.pending_gripper_cmd = None
+        #initialize state for pole related observations
+        self.obs_curr = np.copy(self.state[:2])
         return self.get_obs()
     
     def get_obs(self):
         obs = np.copy(self.state)
         obs[0]-=self.target    
+        #for pole, the policy only access the real state at the rate of 30Hz
+        if self.obs_sample_tick < self.obs_sample_timeout:
+            obs[:2] = self.obs_curr
+        else:
+            self.obs_curr = np.copy(obs[:2])
+            self.obs_sample_tick = 0
+        #add noise to observations
+        obs[0] += (np.random.rand()*2-1)*np.radians(1)
+        obs[1] += (np.random.rand()*2-1)*np.radians(30)
+        # obs[1] = 0
+        #obs[2] += self.obs_gripper_offset
+        # try to not close the loop on gripper observation
+        obs[1] = 0
+        obs[4] = 0.02
+
         return np.array(obs, dtype='f')
 
     def apply_grip_action(self, d):
         #here simulate the latency of applying gripping actions
         #this should be a nonblock call for ros action server
+        if self.pending_gripper_cmd is None:
+            self.pending_gripper_cmd = d
+            self.gripper_latency_tick = 0
+
         if self.gripper_latency_tick > self.gripper_latency_timeout + self.gripper_latency_timeout_rand:
             #reset
             self.gripper_latency_tick = 0
             #we may also apply some randomness to the threshold for the next timeout
-            #apply the desired distance
-            self.state[4] = d
+            #apply the desired distance, comment out to disable it
+            self.state[4] = self.pending_gripper_cmd
+            self.pending_gripper_cmd = None
         else:
             #the command will be ignored if the action is blocked
             pass

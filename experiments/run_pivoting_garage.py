@@ -66,6 +66,7 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
             print('Using Koopman NN Policy')
             residual = koopman_policy.koopman_lqr.FCNN(in_dim, out_dim, [hidden_size, hidden_size], hidden_nonlinearity=nn.ReLU)
 
+        policy_horizon = 5
         policy = GaussianKoopmanLQRPolicy(
             env_spec=env.spec,
             k=4,
@@ -132,7 +133,7 @@ def koopmanlqr_ppo_pivoting_tests(ctxt=None, seed=1, policy_type='koopman', poli
     #     set_gpu_mode(False)
     # algo.to()
     trainer.setup(algo, env)
-    trainer.train(n_epochs=100, batch_size=20000, plot=False)
+    trainer.train(n_epochs=20, batch_size=20000, plot=True)
     return
 
 
