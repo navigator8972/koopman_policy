@@ -9,6 +9,75 @@ from torch import nn, optim
 
 from koopman_policy.utils import FCNN, batch_mv, soft_update_model, batch_pinv
 
+class SolveRiccatiRegulation(torch.autograd.Function):
+    #the most basic form with origin as the regulation target
+    @staticmethod
+    def forward(ctx, A, B, Q, R, T):
+        K = [None] * T
+        V = [None] * (T+1)
+
+        # for symmetry for gradcheck
+        # Q_sym = 0.5*(Q+Q.transpose(-2, -1))
+        # R_sym = 0.5*(R+R.transpose(-2, -1))
+
+        A_trans = A.transpose(-2,-1)
+        B_trans = B.transpose(-2,-1)
+        #initialization for backpropagation
+        V[-1] = Q
+        A_BK = None
+
+        for i in reversed(range(T)):
+            # using torch.solve(B, A) to obtain the solution of A X = B to avoid direct inverse, note it also returns LU
+            # print(B_trans, V[i+1], B)
+            # V_uu_inv_B_trans, _ = torch.solve(B_trans,
+            #     B_trans@V[i+1]@B + R)
+            V_uu_inv_B_trans = torch.linalg.solve(B_trans@V[i+1]@B + R,
+                B_trans)
+
+            K[i] = V_uu_inv_B_trans@V[i+1]@A
+                   
+            #riccati difference equation
+            # A-BK
+            A_BK = A - B@K[i]
+            # V = A^T V (A-BK) + Q = A^T V A - A^T V B (B^T V B + R)^{-1} B^T V A + Q
+            V[i] = A_trans@V[i+1]@A_BK + Q
+        
+        ctx.save_for_backward(V[0], K[0], A_BK)
+        ctx.T = T
+        return V[0]
+        
+    @staticmethod
+    def backward(ctx, grad_out_V):
+        V, K, A_BK = ctx.saved_tensors
+        T = ctx.T
+        #need to solve Lyapunov equation to build Lagrangian for adjoints
+        S = 0
+        #enforce symmetry
+        last_term = 0.5*(grad_out_V.clone() + grad_out_V.clone().transpose(-2, -1))
+
+        #TODO: using T may have stability issue since closed-loop A_BK is not necessarily stable
+        for _ in range(T):
+            S += last_term
+            last_term = A_BK@last_term@A_BK.transpose(-2,-1)
+        #adjoints for A, B, Q, R and ignore T
+        #a derivation can be found in https://arxiv.org/abs/2011.11430
+        grad_in_A = 2*V@A_BK@S
+        grad_in_B = -grad_in_A@K.transpose(-2, -1)
+        grad_in_Q = S
+        grad_in_R = K@S@K.transpose(-2, -1)
+        return grad_in_A, grad_in_B, grad_in_Q, grad_in_R, None
+
+# from torch.autograd import gradcheck
+
+# A = torch.tensor(np.array([[1., 1.], [0, 1.]]), requires_grad=True).double()
+# B = torch.eye(2, requires_grad=True).double()
+# Q = torch.tensor(np.array([[1., 0], [0, 0]]), requires_grad=True).double()
+# R = torch.tensor(np.array([[0.1, 0], [0, 0.3]]), requires_grad=True).double()
+
+# test = gradcheck(SolveRiccatiRegulation.apply, (A, B, Q, R, 10), eps=1e-6, atol=1e-2)
+# print(test)
+
+
 class KoopmanLQR(nn.Module):
     def __init__(self, k, x_dim, u_dim, x_goal, T, phi=None, u_affine=None, g_goal=None):
         """
