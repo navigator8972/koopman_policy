@@ -269,7 +269,8 @@ def koopmanlqr_ppo_bullet_tests(ctxt=None, config=None):
             phi=[hidden_size, hidden_size],
             residual=residual,
             init_std=1.0,
-            use_state_goal='latent'
+            # use_state_goal='latent'
+            use_state_goal='none'
         )
 
         # policy.set_state_goal_learnable(state_goal=None, learnable=False) #fixed origin goal
@@ -362,8 +363,6 @@ def main(args):
         config = yaml.safe_load(file)
 
     # seeds = [1, 21, 52, 251, 521]
-    # seeds = [21, 52, 251, 521]
-    # seeds = [251, 521]
     # seeds = [2, 12, 51, 125, 512]
 
     seeds = [1]

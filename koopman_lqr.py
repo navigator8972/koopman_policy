@@ -409,13 +409,32 @@ class KoopmanLQR(nn.Module):
                     goals = torch.repeat_interleave(self._g_goal.unsqueeze(0).unsqueeze(0), repeats=self._T+1, dim=1)
                 else:
                     goals = None
+            if goals is not None:
+                K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
+                self._riccati_solution_cache = (
+                    [tmp.detach().clone() for tmp in K], 
+                    [tmp.detach().clone()  for tmp in k], 
+                    [tmp.detach().clone()  for tmp in V], 
+                    [tmp.detach().clone()  for tmp in v])
+            else:
+                #call SolveRiccatiRegulation when there are no goals
+                A = self._phi_affine.unsqueeze(0)
+                B = self._u_affine.unsqueeze(0)
+                B_trans = B.transpose(-2, -1)
 
-            K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
-            self._riccati_solution_cache = (
-                [tmp.detach().clone() for tmp in K], 
-                [tmp.detach().clone()  for tmp in k], 
-                [tmp.detach().clone()  for tmp in V], 
-                [tmp.detach().clone()  for tmp in v])
+                V = SolveRiccatiRegulation.apply(A, B, Q, R, self._T)
+                
+                V_uu_inv_B_trans = torch.linalg.solve(B_trans@V@B + R, B_trans)
+                v = self._zero_tensor_constant_v
+                K = V_uu_inv_B_trans@V@A
+                k = self._zero_tensor_constant_k
+
+                self._riccati_solution_cache = (
+                    [K.detach().clone() for _ in range(self._T+1)], 
+                    [k for _ in range(self._T+1)], 
+                    [V.detach().clone() for _ in range(self._T+1)], 
+                    [v for _ in range(self._T+1)])
+                 
         else:
             K, k, V, v = self._riccati_solution_cache
         return K, k, V, v
