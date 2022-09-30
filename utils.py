@@ -1,6 +1,39 @@
 
+from turtle import forward
 import torch
 from torch import nn
+
+class KoopmanThinPlateSplineBasis(nn.Module):
+    """
+    thin plate spline radial basis function
+    as used in arxiv/1611.03537 
+    """
+    def __init__(self, in_dim, n_basis, center_dist_box_scale=1.) -> None:
+        super().__init__()
+        #prepare n_basis function with centers sampled from the box of a scale of center_dist_box_scale
+        #the output dimension is of a length in_dim+n_basis with original features augmented
+        self.register_buffer('_centers', (torch.rand(n_basis, in_dim)*2 - 1) * center_dist_box_scale)
+
+        self.in_dim = in_dim
+        self.n_basis = n_basis
+
+    def forward(self, x):
+        """
+        x       - leading batch dimensions, ..., in_dim
+
+        z       - leading batch dimensions, ..., in_dim+n_basis
+        """
+        # print(x.unsqueeze(-2).shape, self._centers.unsqueeze(0).shape)
+        radial_square = torch.sum(torch.sub(x.unsqueeze(-2), self._centers)**2, dim=-1)
+        phi = 0.5 * radial_square * torch.log(radial_square)
+
+        return torch.cat((x, phi), dim=-1)
+    
+    def inverse(self, z):
+        #return the first in_dim dimension of z
+        return z[:, :self.in_dim]
+    
+
 
 class FCNN(nn.Module):
     """
@@ -110,15 +143,17 @@ def batch_pinv(x, I_factor, use_gpu=False):
         trans = True
     else:
         trans = False
+    
+    I = torch.eye(D)[None, :, :].repeat(B, 1, 1)
 
     x_t = torch.transpose(x, 1, 2)
 
-    # use_gpu = torch.cuda.is_available()
-    # use_gpu = False #test for now...
-    I = torch.eye(D)[None, :, :].repeat(B, 1, 1)
     if use_gpu:
         I = I.cuda()
 
+
+    #for x_pinv@x == I
+    #warning inverse is sensitive to float32/64, try to use pinv/lstsq as now these functions support batch version as well
     x_pinv = torch.bmm(
         torch.inverse(torch.bmm(x_t, x) + I_factor * I),
         x_t

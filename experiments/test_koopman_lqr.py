@@ -1,3 +1,4 @@
+from enum import Flag
 import koopman_policy.koopman_lqr as kpm
 import torch
 import numpy as np
@@ -59,74 +60,6 @@ def test_solve_lqr():
     
     traj = np.array(traj)
     ax.plot(traj[:, 0], traj[:, 1])
-    plt.show()
-    return
-
-def test_koopman_fit():
-    '''
-    forced van der pol example from Korda & Mezic 2016, arxiv/1611.03537 
-    '''
-
-    def vanderpol2d(x, u, dt=0.01):
-        #note the first dim is batch dimension
-        x_dot_1 = 2*x[:, 1]
-        x_dot_2 = -0.8*x[:, 0] + 2*x[:, 1] - 10*x[:, 0]**2*x[:, 1] + u[:, 0]
-        return x + np.array([x_dot_1, x_dot_2]).T*dt
-    
-    n_trajs = 20
-    n_steps = 1000
-
-    u = np.random.rand(n_trajs, n_steps, 1) * 2 -1 
-    x_0 = np.random.rand(n_trajs, 2) * 1 - 0.5
-
-    trajs = [x_0]
-    for t in range(n_steps-1):
-        x_new = vanderpol2d(trajs[-1], u[:, t, :])
-        trajs.append(x_new)
-    
-    trajs = np.swapaxes(np.array(trajs), 0, 1)
-    
-    #it seems a linear embedding sometimes gives a slightly better fit even without the regularization terms.
-    #is there a way we could perform dual optimization to tune the weight of regularization as well?
-    ctrl = kpm.KoopmanLQR(k=2, x_dim=2, u_dim=1, x_goal=torch.zeros(4).float(), T=100, phi=[16, 16], u_affine=None)
-    ctrl.cuda()
-    ctrl.fit_koopman(torch.from_numpy(trajs).float().cuda(), torch.from_numpy(u).float().cuda(), 
-        train_phi=True, 
-        train_phi_inv=True,
-        train_metric=True,
-        ls_factor=-1,
-        n_itrs=500, 
-        lr=1e-4, 
-        verbose=True)
-    ctrl.cpu()
-
-    #for test
-    x_0 = np.ones((1, 2)) * 0.5
-    #sinoidal input, this is different from the doc
-    u = np.array([np.sin(2*np.pi*0.3*np.linspace(0, 1, n_steps))]).T[np.newaxis, :, :]
-    test_traj = [x_0]
-    pred_traj = [ctrl._phi(torch.from_numpy(x_0).float().unsqueeze(0)).detach().numpy()]    #unsqueeze for the batch dimension
-    for t in range(n_steps-1):
-        x_new = vanderpol2d(test_traj[-1], u[:, t, :])
-        
-        x_pred = ctrl.predict_koopman(torch.from_numpy(pred_traj[-1]).float(), torch.from_numpy(u[:, t, :]).float())
-        # try one step pred?
-        # x_pred = ctrl.predict_koopman(torch.from_numpy(test_traj[-1]).float(), torch.from_numpy(u[:, t, :]).float())
-        test_traj.append(x_new)
-        pred_traj.append(x_pred.detach().numpy())
-    
-    test_traj = np.swapaxes(np.array(test_traj), 0, 1)
-    #note we cannot directly compare to the test traj in the unlifted space...
-    test_traj = ctrl._phi(torch.from_numpy(test_traj).float()).detach().numpy()
-    pred_traj = np.swapaxes(np.array(pred_traj), 0, 1)
-    # print(pred_traj.shape)
-
-    fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_subplot(111)
-    ax.plot(np.arange(test_traj.shape[1]), test_traj[0, :, 0] , 'b.')
-    ax.plot(np.arange(test_traj.shape[1]), test_traj[0, :, 1] , 'g.')
-    ax.plot(np.arange(pred_traj.shape[1]), pred_traj[0, :, 0, 0], 'b-')
-    ax.plot(np.arange(pred_traj.shape[1]), pred_traj[0, :, 0, 1], 'g-')
     plt.show()
     return
 
@@ -212,7 +145,6 @@ def test_cost_to_go():
 
 
 if __name__ == "__main__":
-    test_solve_lqr()
-    #test_koopman_fit()
-    # test_mpc()    
+    # test_solve_lqr()
+    test_mpc()    
     #test_cost_to_go()

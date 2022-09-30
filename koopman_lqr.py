@@ -1,6 +1,7 @@
 """
 Solving LQR for Koopman embedded dynamical systems. Keep everything differentiable.
 """
+from turtle import left
 import numpy as np
 import copy
 
@@ -268,6 +269,7 @@ class KoopmanLQR(nn.Module):
             train_phi_inv=True,     #include reconstruction aux loss
             train_metric=True,      #include auxiliary term to preserve distance
             ls_factor=None,         #if not None but a float, use pinv directly solving the least square problem, with the value as the regularization factor of matrix inversion
+            recurr=1,               #length with recursive prediction loss
             n_itrs=100,             #number of optimization iterations
             lr=1e-4,                #learning rate
             verbose=False):         #verbose info
@@ -277,21 +279,24 @@ class KoopmanLQR(nn.Module):
         '''
         u_curr = U[:, :X.shape[1]-1, :]
 
-        #choose to train NN feature or not. In the case of False, the embedding is basically a random projection
-        if train_phi:
-            # params = list(self._phi.parameters()) + list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
-            params = list(self._phi.parameters())
-        if ls_factor is None:
+        params = []
+        if ls_factor < 0:
             #this can actually solved by pinverse...
             # params += list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
             params += [self._phi_affine, self._u_affine]
+
+        #choose to train NN feature or not. In the case of False, the embedding is basically a random projection
+        if train_phi:
+            # params = list(self._phi.parameters()) + list(self._phi_affine.parameters()) + list(self._u_affine.parameters())
+            params += list(self._phi.parameters())
 
         if train_phi_inv:
             assert self._phi_inv is not None
             params += list(self._phi_inv.parameters())
         
-        if train_phi or train_phi_inv or train_metric:
-            #numeric optimization for all params
+
+        #numeric optimization for all params
+        if ls_factor < 0 or train_phi:
             opt = optim.Adam(params, lr=lr, weight_decay=0)
             loss = nn.MSELoss()
 
@@ -299,14 +304,19 @@ class KoopmanLQR(nn.Module):
             # or lets stick to an entire optimization loop since we want to learn encoder/decoder anyhow
             for i in range(n_itrs):
                 g = self._phi(X)
-                if ls_factor is None:
-                    g_next = g[:, 1:, :]
+                tol_loss = 0
+                if ls_factor < 0:
+                    # g_next = g[:, 1:, :]
                     g_curr = g[:, :-1, :]
-                    
-                    g_pred = torch.matmul(g_curr, self._phi_affine.transpose(0, 1))+torch.matmul(u_curr, self._u_affine.transpose(0, 1))
-                
-                    #eval loss over all of them
-                    tol_loss = loss(g_pred, g_next)
+                    g_curr_recursive = g_curr
+                    Bu = torch.matmul(u_curr, self._u_affine.transpose(0, 1))
+                    for ri in range(recurr):
+                        # print(ri)
+                        g_pred = torch.matmul(g_curr_recursive, self._phi_affine.transpose(0, 1))[:, :X.shape[1]-1-ri, :] + Bu[:, ri:, :]
+                        #eval loss over all of them
+                        tol_loss += loss(g_pred, g[:, (ri+1):, :])
+                        g_curr_recursive = g_pred
+                        
                     pred_loss = tol_loss.item()
                 else:
                     #solve least square problem to get A and B
@@ -335,6 +345,18 @@ class KoopmanLQR(nn.Module):
 
                 if verbose:
                     print('Iteration {0}: Pred loss - {1}; Recons loss - {2}; Metric loss - {3}'.format(i, pred_loss, recons_loss, metric_loss))
+                    # print(self._phi_affine[0], self._u_affine[0])
+        else:
+            g = self._phi(X)
+            #solve least square problem to get A and B
+            A, B, pred_loss = self._solve_least_square_traj(g, u_curr, ls_factor)
+            tol_loss = pred_loss
+            self._phi_affine = nn.Parameter(A)
+            self._u_affine = nn.Parameter(B)
+
+            if verbose:
+                print("Loss from solving least square problem:", pred_loss.item())
+                
         return
     
     def _solve_least_square_traj(self, G, U, I_factor=10):
@@ -360,14 +382,21 @@ class KoopmanLQR(nn.Module):
         '''
         #(1, B*T, k+u_dim)
         GU_cat = torch.cat([G, U], dim=2)
-        AB_cat = torch.bmm(batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), G_next)
+        #note the original compositional koopman appeared to incorrectly use left inverse for G_next = G@A
+        # AB_cat = torch.bmm(batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), G_next)
+        #use lstsq instead as they support batch data as well. batch_pinv/torch.inverse was found sensitive to float32
+        #this will also deprecate I_factor because that is only needed for pinv
+        AB_cat = torch.linalg.lstsq(GU_cat, G_next).solution
 
         A_transpose = AB_cat[:, :G.shape[2], :]
         B_transpose = AB_cat[:, G.shape[2]:, :]        
         # print(A_transpose, B_transpose)
         # print(A_transpose.squeeze(0), B_transpose.squeeze(0))
-        fit_err = G_next - torch.bmm(GU_cat, AB_cat)
-        fit_err = torch.sqrt((fit_err ** 2).mean())
+        # fit_err = G_next - torch.bmm(GU_cat, AB_cat)
+
+        # fit_err = torch.norm(fit_err)**2/(G_next.shape[1]*G_next.shape[2])
+        loss = nn.MSELoss()
+        fit_err = loss(torch.bmm(GU_cat, AB_cat), G_next)   
         return A_transpose.squeeze(0).transpose(0,1), B_transpose.squeeze(0).transpose(0,1), fit_err
     
     def _loss_metric(self, X, G, scaling_factor = 1):
