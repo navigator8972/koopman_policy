@@ -82,6 +82,28 @@ class FCNN(nn.Module):
         
         self.apply(param_init)
 
+class KoopmanFCNNLift(nn.Module):
+    """
+    An FCNN lift function with skip output allowing to recover the original input
+    input:  x
+    output: [x; FCNN(x)] - so inverse could be just first input size dimensions
+    """
+    def __init__(self, in_dim, out_dim, hidden_dim, hidden_nonlinearity=None, output_nonlinearity=None):
+        super().__init__()
+        #note here out_dim should be larger than in_dim so we can automatically determine the NN output layer
+        assert(in_dim < out_dim)
+        self.fcnn_ = FCNN(in_dim, out_dim-in_dim, hidden_dim, hidden_nonlinearity, output_nonlinearity)
+        self.in_dim_ = in_dim
+        self.out_dim_ = out_dim
+    
+        self.fcnn_.init_params()
+    
+    def forward(self, x):
+        return torch.cat((x, self.fcnn_(x)), dim=-1)
+    
+    def inverse(self, z):
+        return z[..., :self.in_dim_]
+
 # comment out for now because the torch version conflict between garage and geotorch (1.51 vs 1.80)
 # import geotorch
 # import torch.nn.functional as F 

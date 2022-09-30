@@ -3,7 +3,7 @@ import koopman_policy.koopman_lqr as kpm
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
-from koopman_policy.utils import KoopmanThinPlateSplineBasis
+from koopman_policy.utils import KoopmanThinPlateSplineBasis, KoopmanFCNNLift
 
 def test_koopman_fit():
     '''
@@ -44,20 +44,21 @@ def test_koopman_fit():
     n_k = 100
 
     phi_fixed_basis = KoopmanThinPlateSplineBasis(in_dim=x_dim, n_basis=n_k-x_dim, center_dist_box_scale=1.)
-    
+    phi_fcnn_basis = KoopmanFCNNLift(in_dim=x_dim, out_dim=n_k, hidden_dim=[4, 4])
     #it seems a linear embedding sometimes gives a slightly better fit even without the regularization terms.
     #is there a way we could perform dual optimization to tune the weight of regularization as well?
-    # ctrl = kpm.KoopmanLQR(k=n_k, x_dim=x_dim, u_dim=u_dim, x_goal=torch.zeros(4).float(), T=100, phi=[32, 32], u_affine=None)
-    ctrl = kpm.KoopmanLQR(k=n_k, x_dim=x_dim, u_dim=u_dim, x_goal=torch.zeros(4).float(), T=100, phi=phi_fixed_basis, u_affine=None)
+    #ctrl = kpm.KoopmanLQR(k=20, x_dim=x_dim, u_dim=u_dim, x_goal=torch.zeros(4).float(), T=100, phi=[32, 32], u_affine=None)
+    ctrl = kpm.KoopmanLQR(k=n_k, x_dim=x_dim, u_dim=u_dim, x_goal=torch.zeros(4).float(), T=100, phi=phi_fcnn_basis, u_affine=None)
+    # ctrl = kpm.KoopmanLQR(k=n_k, x_dim=x_dim, u_dim=u_dim, x_goal=torch.zeros(4).float(), T=100, phi=phi_fixed_basis, u_affine=None)
 
     ctrl.cuda()
     ctrl.fit_koopman(torch.from_numpy(trajs).float().cuda(), torch.from_numpy(u).float().cuda(), 
-        train_phi=False, 
+        train_phi=True, 
         train_phi_inv=False,
         train_metric=False,
-        ls_factor=1e-6,
+        ls_factor=1,
         recurr = 1,
-        n_itrs=500, 
+        n_itrs=10, 
         lr=1e-1, 
         verbose=True)
     ctrl.cpu()

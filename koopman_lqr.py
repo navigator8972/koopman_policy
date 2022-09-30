@@ -384,9 +384,18 @@ class KoopmanLQR(nn.Module):
         GU_cat = torch.cat([G, U], dim=2)
         #note the original compositional koopman appeared to incorrectly use left inverse for G_next = G@A
         # AB_cat = torch.bmm(batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), G_next)
+
+        #this is more explicit but why it does not overflow memory consumption anymore?
+        AB_cat = torch.bmm(torch.bmm(torch.linalg.pinv(torch.bmm(GU_cat.transpose(1,2), GU_cat)),GU_cat.transpose(1,2))
+                            , G_next)
+
+        # this should be also straightforward next to lstsq, but also need large memory consumption 
+        # AB_cat = torch.bmm(torch.linalg.pinv(GU_cat), G_next)
+        
         #use lstsq instead as they support batch data as well. batch_pinv/torch.inverse was found sensitive to float32
         #this will also deprecate I_factor because that is only needed for pinv
-        AB_cat = torch.linalg.lstsq(GU_cat, G_next).solution
+        #for backward it seems this requires very large memory fingerprint
+        # AB_cat = torch.linalg.lstsq(GU_cat, G_next).solution
 
         A_transpose = AB_cat[:, :G.shape[2], :]
         B_transpose = AB_cat[:, G.shape[2]:, :]        
