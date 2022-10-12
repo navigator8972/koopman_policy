@@ -15,6 +15,8 @@ matplotlib
 
 **For policy learning and gym environments**
 
+[pybullet](https://github.com/bulletphysics/bullet3)
+
 [garage](https://github.com/rlworkgroup/garage)
 
 [DEDO](https://github.com/contactrika/dedo)
