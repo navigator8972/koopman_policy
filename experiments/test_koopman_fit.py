@@ -53,12 +53,12 @@ def test_koopman_fit():
 
     ctrl.cuda()
     ctrl.fit_koopman(torch.from_numpy(trajs).float().cuda(), torch.from_numpy(u).float().cuda(), 
-        train_phi=True, 
+        train_phi=False, 
         train_phi_inv=False,
         train_metric=False,
         ls_factor=1,
         recurr = 1,
-        n_itrs=10, 
+        n_itrs=100, 
         lr=1e-1, 
         verbose=True)
     ctrl.cpu()

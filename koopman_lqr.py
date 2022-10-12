@@ -198,10 +198,11 @@ class KoopmanLQR(nn.Module):
                 # ) 
                 # (B^T V B + R)^{-1} B^T
                 # using torch.solve(B, A) to obtain the solution of A X = B to avoid direct inverse, note it also returns LU
-                V_uu_inv_B_trans, _ = torch.solve(B_trans,
-                    torch.matmul(torch.matmul(B_trans, V[i+1]),
+                # for new torch.linalg.solve, no LU is returned
+                V_uu_inv_B_trans = torch.linalg.solve(torch.matmul(torch.matmul(B_trans, V[i+1]),
                     B
-                    ) + R)
+                    ) + R, B_trans
+                    )
                 # V_uu_inv_B_trans = torch.matmul(
                 #     torch.inverse(
                 #     torch.matmul(
@@ -232,10 +233,9 @@ class KoopmanLQR(nn.Module):
             #None goals means a fixed regulation point at origin. ignore k and v for efficiency
             for i in reversed(range(T)):
                 # using torch.solve(B, A) to obtain the solution of A X = B to avoid direct inverse, note it also returns LU
-                V_uu_inv_B_trans, _ = torch.solve(B_trans,
-                    torch.matmul(torch.matmul(B_trans, V[i+1]),
+                V_uu_inv_B_trans = torch.linalg.solve(torch.matmul(torch.matmul(B_trans, V[i+1]),
                     B
-                    ) + R)
+                    ) + R, B_trans)
                 # V_uu_inv_B_trans = torch.matmul(
                 #     torch.inverse(
                 #     torch.matmul(
@@ -382,20 +382,20 @@ class KoopmanLQR(nn.Module):
         '''
         #(1, B*T, k+u_dim)
         GU_cat = torch.cat([G, U], dim=2)
-        #note the original compositional koopman appeared to incorrectly use left inverse for G_next = G@A
-        # AB_cat = torch.bmm(batch_pinv(GU_cat, I_factor, use_gpu=next(self.parameters()).is_cuda), G_next)
 
         #this is more explicit but why it does not overflow memory consumption anymore?
-        AB_cat = torch.bmm(torch.bmm(torch.linalg.pinv(torch.bmm(GU_cat.transpose(1,2), GU_cat)),GU_cat.transpose(1,2))
-                            , G_next)
+        reg = torch.eye(GU_cat.shape[2], device=GU_cat.device)[None, :, :]
+        AB_cat = torch.bmm(torch.bmm(torch.linalg.pinv(torch.bmm(GU_cat.transpose(1,2), GU_cat) + I_factor*reg),
+                                    GU_cat.transpose(1,2)), G_next)
 
         # this should be also straightforward next to lstsq, but also need large memory consumption 
         # AB_cat = torch.bmm(torch.linalg.pinv(GU_cat), G_next)
         
         #use lstsq instead as they support batch data as well. batch_pinv/torch.inverse was found sensitive to float32
         #this will also deprecate I_factor because that is only needed for pinv
-        #for backward it seems this requires very large memory fingerprint
-        # AB_cat = torch.linalg.lstsq(GU_cat, G_next).solution
+        #for backward it seems this requires very large memory footprint 
+        # AB_cat = torch.linalg.lstsq(GU_cat[0], G_next[0]).solution
+        # AB_cat = AB_cat[None, :, :]
 
         A_transpose = AB_cat[:, :G.shape[2], :]
         B_transpose = AB_cat[:, G.shape[2]:, :]        
@@ -451,9 +451,9 @@ class KoopmanLQR(nn.Module):
                 K, k, V, v = self._solve_lqr(self._phi_affine.unsqueeze(0), self._u_affine.unsqueeze(0), Q, R, goals)
                 self._riccati_solution_cache = (
                     [tmp.detach().clone() for tmp in K], 
-                    [tmp.detach().clone()  for tmp in k], 
-                    [tmp.detach().clone()  for tmp in V], 
-                    [tmp.detach().clone()  for tmp in v])
+                    [tmp.detach().clone() for tmp in k], 
+                    [tmp.detach().clone() for tmp in V], 
+                    [tmp.detach().clone() for tmp in v])
             else:
                 #call SolveRiccatiRegulation when there are no goals
                 A = self._phi_affine.unsqueeze(0)
